@@ -1,0 +1,16 @@
+# Telegram Bot
+aiogram==3.13.1
+aiohttp==3.10.10
+
+# Web Panel
+Flask==3.1.0
+Flask-Login==0.6.3
+
+# Database
+aiosqlite==0.20.0
+
+# Utilities
+python-dotenv==1.0.1
+
+# Production server (Railway)
+gunicorn==21.2.0

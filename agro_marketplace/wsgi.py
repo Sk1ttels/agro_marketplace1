@@ -1,0 +1,5 @@
+"""WSGI entrypoint for Agro Marketplace web panel (Railway/Gunicorn)."""
+
+from src.web_panel.app import create_app
+
+app = create_app()

@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block page_title %}Лоти{% endblock %}
+{% block page_description %}Управління товарами та оголошеннями{% endblock %}
+
+{% block content %}
+<div class="lots-container">
+  <!-- Filters -->
+  <div class="page-controls">
+    <div class="filter-tabs">
+      <a href="/lots" class="filter-tab {% if not status %}active{% endif %}">
+        <i class="fas fa-th"></i>
+        Всі лоти
+      </a>
+      <a href="/lots?status=active" class="filter-tab {% if status == 'active' %}active{% endif %}">
+        <i class="fas fa-check-circle"></i>
+        Активні
+      </a>
+      <a href="/lots?status=pending" class="filter-tab {% if status == 'pending' %}active{% endif %}">
+        <i class="fas fa-clock"></i>
+        Очікують
+      </a>
+      <a href="/lots?status=closed" class="filter-tab {% if status == 'closed' %}active{% endif %}">
+        <i class="fas fa-times-circle"></i>
+        Закриті
+      </a>
+    </div>
+
+    <div class="page-actions">
+      <button class="btn btn-secondary" onclick="window.location.reload()">
+        <i class="fas fa-sync-alt"></i>
+        Оновити
+      </button>
+      <a href="/lots/export" class="btn btn-success">
+        <i class="fas fa-download"></i>
+        Експорт
+      </a>
+    </div>
+  </div>
+
+  <!-- Lots Grid -->
+  {% if rows %}
+  <div class="lots-grid">
+    {% for row in rows %}
+    <div class="lot-card">
+      <div class="lot-header">
+        <div class="lot-type">
+          <i class="fas fa-{% if row['type'] == 'sell' %}tag{% else %}shopping-cart{% endif %}"></i>
+          {{ 'Продаж' if row['type'] == 'sell' else 'Купівля' }}
+        </div>
+        <div class="lot-status">
+          {% if row['status'] == 'active' %}
+          <span class="status-badge status-success">
+            <span class="status-dot"></span>
+            Активний
+          </span>
+          {% elif row['status'] == 'pending' %}
+          <span class="status-badge status-warning">
+            <span class="status-dot"></span>
+            Очікує
+          </span>
+          {% else %}
+          <span class="status-badge status-danger">
+            <span class="status-dot"></span>
+            Закритий
+          </span>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="lot-body">
+        <h3 class="lot-title">{{ row['title'] or 'Без назви' }}</h3>
+        
+        <div class="lot-details">
+          <div class="lot-detail">
+            <i class="fas fa-map-marker-alt"></i>
+            <span>{{ row['region'] or 'Регіон не вказано' }}</span>
+          </div>
+          <div class="lot-detail">
+            <i class="fas fa-weight-hanging"></i>
+            <span>{{ row['amount'] or '—' }}</span>
+          </div>
+        </div>
+
+        <div class="lot-price">
+          <div class="price-label">Ціна:</div>
+          <div class="price-value">
+            {{ row['price'] or '—' }} 
+            <span class="currency">{{ row['currency'] or 'UAH' }}</span>
+          </div>
+        </div>
+
+        <div class="lot-meta">
+          <span class="lot-id">#{{ row['id'] }}</span>
+          <span class="lot-date">
+            <i class="far fa-calendar"></i>
+            {{ row['created_at'] or '—' }}
+          </span>
+        </div>
+      </div>
+
+      <div class="lot-footer">
+        <div class="lot-owner">
+          <i class="fas fa-user"></i>
+          ID: {{ row['owner_tg_id'] or row['user_id'] or '—' }}
+        </div>
+        <div class="lot-actions">
+          {% if row['status'] == 'active' %}
+          <form method="POST" action="/lots/{{ row['id'] }}/close" style="display:inline">
+            <button type="submit" class="btn-lot btn-lot-danger" title="Закрити лот">
+              <i class="fas fa-times"></i>
+            </button>
+          </form>
+          {% else %}
+          <form method="POST" action="/lots/{{ row['id'] }}/activate" style="display:inline">
+            <button type="submit" class="btn-lot btn-lot-success" title="Активувати лот">
+              <i class="fas fa-check"></i>
+            </button>
+          </form>
+          {% endif %}
+          <a href="/lots/{{ row['id'] }}" class="btn-lot btn-lot-info" title="Деталі">
+            <i class="fas fa-eye"></i>
+          </a>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Pagination would go here -->
+  <div class="pagination-info">
+    <p>Показано {{ rows|length }} лотів</p>
+  </div>
+
+  {% else %}
+  <div class="table-card">
+    <div class="empty-state">
+      <div class="empty-icon">
+        <i class="fas fa-box-open"></i>
+      </div>
+      <h3>Лотів не знайдено</h3>
+      <p>{% if status %}Немає лотів зі статусом "{{ status }}"{% else %}Додайте перший лот через Telegram Bot{% endif %}</p>
+      {% if status %}
+      <a href="/lots" class="btn btn-primary mt-3">
+        <i class="fas fa-arrow-left"></i>
+        Показати всі лоти
+      </a>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

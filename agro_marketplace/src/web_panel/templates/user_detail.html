@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block title %}Користувач #{{ user['id'] }}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1 class="card-title">
+        👤 {{ user['full_name'] or user['username'] or 'Користувач' }}
+        {% if user['is_banned'] %}
+            <span class="badge badge-danger">Заблокований</span>
+        {% endif %}
+    </h1>
+    
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-top: 1.5rem;">
+        <div>
+            <div style="font-size: 0.9rem; color: #718096; margin-bottom: 0.5rem;">Telegram ID</div>
+            <div style="font-size: 1.1rem; font-weight: 600;"><code>{{ user['telegram_id'] }}</code></div>
+        </div>
+        
+        <div>
+            <div style="font-size: 0.9rem; color: #718096; margin-bottom: 0.5rem;">Username</div>
+            <div style="font-size: 1.1rem; font-weight: 600;">{{ user['username'] or '-' }}</div>
+        </div>
+        
+        <div>
+            <div style="font-size: 0.9rem; color: #718096; margin-bottom: 0.5rem;">Телефон</div>
+            <div style="font-size: 1.1rem; font-weight: 600;">{{ user['phone'] or '-' }}</div>
+        </div>
+        
+        <div>
+            <div style="font-size: 0.9rem; color: #718096; margin-bottom: 0.5rem;">Роль</div>
+            <div style="font-size: 1.1rem; font-weight: 600;">
+                {% if user['role'] == 'farmer' %}
+                    👨‍🌾 Фермер
+                {% elif user['role'] == 'buyer' %}
+                    🧑‍💼 Покупець
+                {% elif user['role'] == 'logistic' %}
+                    🚚 Логіст
+                {% else %}
+                    {{ user['role'] }}
+                {% endif %}
+            </div>
+        </div>
+        
+        <div>
+            <div style="font-size: 0.9rem; color: #718096; margin-bottom: 0.5rem;">Регіон</div>
+            <div style="font-size: 1.1rem; font-weight: 600;">{{ user['region'] or '-' }}</div>
+        </div>
+        
+        <div>
+            <div style="font-size: 0.9rem; color: #718096; margin-bottom: 0.5rem;">Дата реєстрації</div>
+            <div style="font-size: 1.1rem; font-weight: 600;">{{ user['created_at'][:10] if user['created_at'] else '-' }}</div>
+        </div>
+    </div>
+    
+    <div style="margin-top: 2rem; display: flex; gap: 1rem;">
+        <a href="{{ url_for('users') }}" class="btn btn-primary">← Назад до списку</a>
+        {% if user['is_banned'] %}
+            <a href="{{ url_for('unban_user', user_id=user['id']) }}" class="btn btn-success">Розблокувати користувача</a>
+        {% else %}
+            <a href="{{ url_for('ban_user', user_id=user['id']) }}" class="btn btn-danger">Заблокувати користувача</a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <h2 class="card-title">📦 Лоти користувача ({{ lots|length }})</h2>
+    
+    {% if lots %}
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Тип</th>
+                <th>Культура</th>
+                <th>Об'єм</th>
+                <th>Ціна</th>
+                <th>Регіон</th>
+                <th>Статус</th>
+                <th>Дата</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for lot in lots %}
+            <tr>
+                <td><strong>#{{ lot['id'] }}</strong></td>
+                <td>
+                    {% if lot['type'] == 'sell' %}
+                        <span class="badge badge-success">📤 Продаж</span>
+                    {% else %}
+                        <span class="badge badge-info">📥 Купівля</span>
+                    {% endif %}
+                </td>
+                <td>{{ lot['crop'] }}</td>
+                <td>{{ lot['volume'] }} т</td>
+                <td>
+                    {% if lot['price'] %}
+                        {{ lot['price'] }} грн/т
+                    {% else %}
+                        <span style="color: #718096;">Договірна</span>
+                    {% endif %}
+                </td>
+                <td>{{ lot['region'] }}</td>
+                <td>
+                    {% if lot['status'] == 'active' %}
+                        <span class="badge badge-success">✅ Активний</span>
+                    {% else %}
+                        <span class="badge badge-danger">🔒 Закритий</span>
+                    {% endif %}
+                </td>
+                <td>{{ lot['created_at'][:10] if lot['created_at'] else '-' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div style="text-align: center; padding: 2rem; color: #718096;">
+        У користувача поки немає лотів
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

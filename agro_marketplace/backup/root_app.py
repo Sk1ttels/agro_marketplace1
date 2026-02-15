@@ -1,0 +1,693 @@
+# -*- coding: utf-8 -*-
+"""
+Agro Marketplace — Admin Web Panel
+✅ Синхронізована БД з ботом
+✅ Сучасний інтерфейс
+✅ Керування користувачами та лотами
+"""
+
+from pathlib import Path
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+from config.settings import FLASK_SECRET, ADMIN_USER, ADMIN_PASS
+from .db import get_conn, init_schema, get_setting, set_setting
+from .auth import AdminUser, check_login
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+def create_app() -> Flask:
+    """Створення Flask додатку"""
+    app = Flask(
+        __name__,
+        template_folder=str((Path(__file__).parent / "templates").resolve()),
+        static_folder=str((Path(__file__).parent / "static").resolve()),
+    )
+    app.secret_key = FLASK_SECRET
+
+    # Flask-Login
+    login_manager = LoginManager()
+    login_manager.login_view = "login"
+    login_manager.init_app(app)
+
+    @login_manager.user_loader
+    def load_user(user_id: str):
+        return AdminUser(user_id)
+
+    # Ініціалізація схеми БД
+    init_schema()
+
+    # ============ ROUTES ============
+
+    @app.get("/")
+    def root():
+        return redirect(url_for("dashboard"))
+
+    # -------- Авторизація --------
+    @app.get("/login")
+    def login():
+        if current_user.is_authenticated:
+            return redirect(url_for("dashboard"))
+        return render_template("login.html")
+
+    @app.post("/login")
+    def login_post():
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "").strip()
+        
+        if check_login(username, password):
+            login_user(AdminUser(username))
+            flash("Успішний вхід! 👋", "success")
+            return redirect(url_for("dashboard"))
+        
+        flash("Невірний логін або пароль ❌", "danger")
+        return redirect(url_for("login"))
+
+    @app.get("/logout")
+    @login_required
+    def logout():
+        logout_user()
+        flash("Ви вийшли з системи", "info")
+        return redirect(url_for("login"))
+
+    # -------- Dashboard --------
+    @app.get("/dashboard")
+    @login_required
+    def dashboard():
+        conn = get_conn()
+        stats = {
+            "users": 0,
+            "lots": 0,
+            "active_lots": 0,
+            "banned": 0,
+        }
+
+        # Статистика користувачів
+        if _has_table(conn, "users"):
+            try:
+                stats["users"] = conn.execute("SELECT COUNT(*) AS c FROM users").fetchone()["c"]
+                if _has_col(conn, "users", "is_banned"):
+                    stats["banned"] = conn.execute("SELECT COUNT(*) AS c FROM users WHERE is_banned=1").fetchone()["c"]
+            except Exception:
+                pass
+
+        # Статистика лотів
+        if _has_table(conn, "lots"):
+            try:
+                stats["lots"] = conn.execute("SELECT COUNT(*) AS c FROM lots").fetchone()["c"]
+                cols = _table_cols(conn, "lots")
+                
+                if "status" in cols:
+                    stats["active_lots"] = conn.execute(
+                        "SELECT COUNT(*) AS c FROM lots WHERE status IN ('active', 'open', 'published')"
+                    ).fetchone()["c"]
+                elif "is_active" in cols:
+                    stats["active_lots"] = conn.execute("SELECT COUNT(*) AS c FROM lots WHERE is_active=1").fetchone()["c"]
+                elif "is_closed" in cols:
+                    stats["active_lots"] = conn.execute("SELECT COUNT(*) AS c FROM lots WHERE is_closed=0").fetchone()["c"]
+            except Exception:
+                pass
+
+        # Отримуємо дані за останні 7 днів для графіка
+        weekly_data = {
+            "labels": [],
+            "new_users": [],
+            "new_lots": []
+        }
+        
+        if _has_table(conn, "users") and _has_col(conn, "users", "created_at"):
+            try:
+                # Користувачі за останні 7 днів
+                for i in range(6, -1, -1):
+                    day_offset = i
+                    day_data = conn.execute(
+                        """SELECT COUNT(*) as c FROM users 
+                           WHERE date(created_at) = date('now', '-' || ? || ' days')""",
+                        (day_offset,)
+                    ).fetchone()
+                    weekly_data["new_users"].append(day_data["c"] if day_data else 0)
+            except Exception as e:
+                weekly_data["new_users"] = [0] * 7
+
+        if _has_table(conn, "lots") and _has_col(conn, "lots", "created_at"):
+            try:
+                # Лоти за останні 7 днів
+                for i in range(6, -1, -1):
+                    day_offset = i
+                    day_data = conn.execute(
+                        """SELECT COUNT(*) as c FROM lots 
+                           WHERE date(created_at) = date('now', '-' || ? || ' days')""",
+                        (day_offset,)
+                    ).fetchone()
+                    weekly_data["new_lots"].append(day_data["c"] if day_data else 0)
+            except Exception as e:
+                weekly_data["new_lots"] = [0] * 7
+
+        # Мітки днів
+        import datetime
+        for i in range(6, -1, -1):
+            date = datetime.datetime.now() - datetime.timedelta(days=i)
+            day_name = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд'][date.weekday()]
+            weekly_data["labels"].append(day_name)
+
+        # Останні лоти для відображення
+        recent_lots = []
+        if _has_table(conn, "lots"):
+            try:
+                recent_lots = conn.execute(
+                    "SELECT * FROM lots ORDER BY id DESC LIMIT 4"
+                ).fetchall()
+            except Exception:
+                pass
+
+        conn.close()
+        return render_template("dashboard.html", stats=stats, weekly_data=weekly_data, recent_lots=recent_lots)
+
+    # -------- Користувачі --------
+    @app.get("/users")
+    @login_required
+    def users_page():
+        q = request.args.get("q", "").strip()
+        conn = get_conn()
+        
+        if not _has_table(conn, "users"):
+            conn.close()
+            return render_template("users.html", rows=[], q=q)
+
+        cols = _table_cols(conn, "users")
+        where_clauses = []
+        params = []
+
+        if q:
+            # Регістронезалежний пошук - ВИПРАВЛЕНО
+            search_fields = []
+            if "telegram_id" in cols:
+                search_fields.append("CAST(telegram_id AS TEXT) LIKE ?")
+                params.append(f"%{q}%")
+            if "username" in cols:
+                search_fields.append("LOWER(COALESCE(username,'')) LIKE LOWER(?)")
+                params.append(f"%{q}%")
+            if "full_name" in cols:
+                search_fields.append("LOWER(COALESCE(full_name,'')) LIKE LOWER(?)")
+                params.append(f"%{q}%")
+            
+            if search_fields:
+                where_clauses.append(f"({' OR '.join(search_fields)})")
+
+        sql = "SELECT * FROM users"
+        if where_clauses:
+            sql += " WHERE " + " AND ".join(where_clauses)
+        sql += " ORDER BY id DESC LIMIT 300"
+
+        rows = conn.execute(sql, tuple(params)).fetchall()
+        conn.close()
+        return render_template("users.html", rows=rows, q=q)
+
+    @app.post("/users/<int:user_id>/ban")
+    @login_required
+    def user_ban(user_id: int):
+        conn = get_conn()
+        try:
+            if _has_table(conn, "users") and _has_col(conn, "users", "is_banned"):
+                user = conn.execute("SELECT telegram_id FROM users WHERE id=?", (user_id,)).fetchone()
+                conn.execute("UPDATE users SET is_banned=1 WHERE id=?", (user_id,))
+                conn.commit()
+                logger.info(f"User {user_id} banned by admin")
+                flash("Користувача забанено ✅", "success")
+            else:
+                flash("Неможливо забанити користувача ❌", "danger")
+        except Exception as e:
+            logger.error(f"Error banning user {user_id}: {e}")
+            flash(f"Помилка: {str(e)}", "danger")
+            conn.rollback()
+        finally:
+            conn.close()
+        return redirect(url_for("users_page"))
+
+    @app.post("/users/<int:user_id>/unban")
+    @login_required
+    def user_unban(user_id: int):
+        conn = get_conn()
+        try:
+            if _has_table(conn, "users") and _has_col(conn, "users", "is_banned"):
+                user = conn.execute("SELECT telegram_id FROM users WHERE id=?", (user_id,)).fetchone()
+                conn.execute("UPDATE users SET is_banned=0 WHERE id=?", (user_id,))
+                conn.commit()
+                logger.info(f"User {user_id} unbanned by admin")
+                flash("Користувача розбанено ✅", "success")
+            else:
+                flash("Неможливо розбанити користувача ❌", "danger")
+        except Exception as e:
+            logger.error(f"Error unbanning user {user_id}: {e}")
+            flash(f"Помилка: {str(e)}", "danger")
+            conn.rollback()
+        finally:
+            conn.close()
+        return redirect(url_for("users_page"))
+    
+    @app.get("/users/export")
+    @login_required
+    def users_export():
+        """Експорт користувачів у CSV - ДОДАНО"""
+        import csv
+        from io import StringIO
+        from flask import Response
+        
+        conn = get_conn()
+        
+        if not _has_table(conn, "users"):
+            flash("Таблиця користувачів не знайдена", "danger")
+            conn.close()
+            return redirect(url_for("users_page"))
+        
+        users = conn.execute("SELECT * FROM users ORDER BY id DESC").fetchall()
+        conn.close()
+        
+        output = StringIO()
+        
+        if users:
+            cols = list(users[0].keys())
+            writer = csv.DictWriter(output, fieldnames=cols)
+            writer.writeheader()
+            
+            for user in users:
+                writer.writerow(dict(user))
+        
+        output.seek(0)
+        
+        return Response(
+            output.getvalue(),
+            mimetype="text/csv",
+            headers={
+                "Content-Disposition": "attachment;filename=users_export.csv",
+                "Content-Type": "text/csv; charset=utf-8"
+            }
+        )
+
+    @app.get("/users/<int:user_id>")
+    @login_required
+    def user_detail(user_id: int):
+        """Детальна інформація про користувача"""
+        conn = get_conn()
+        
+        if not _has_table(conn, "users"):
+            flash("Таблиця користувачів не знайдена", "danger")
+            conn.close()
+            return redirect(url_for("users_page"))
+        
+        user = conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
+        
+        if not user:
+            flash(f"Користувач #{user_id} не знайдений", "danger")
+            conn.close()
+            return redirect(url_for("users_page"))
+        
+        # Отримуємо лоти користувача
+        lots = []
+        if _has_table(conn, "lots"):
+            lots = conn.execute(
+                "SELECT * FROM lots WHERE owner_user_id=? ORDER BY id DESC LIMIT 50",
+                (user_id,)
+            ).fetchall()
+        
+        conn.close()
+        
+        # Перевіряємо чи є шаблон user_detail.html
+        try:
+            return render_template("user_detail.html", user=user, lots=lots)
+        except:
+            # Якщо шаблону немає - показуємо просту сторінку
+            user_dict = dict(user)
+            return f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Користувач #{user_id}</title>
+                <meta charset="utf-8">
+                <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+            </head>
+            <body>
+                <div class="container mt-4">
+                    <h2>👤 Користувач #{user_id}</h2>
+                    <div class="card mt-3">
+                        <div class="card-body">
+                            <p><strong>Telegram ID:</strong> {user_dict.get('telegram_id', '—')}</p>
+                            <p><strong>Ім'я:</strong> {user_dict.get('full_name', '—')}</p>
+                            <p><strong>Username:</strong> @{user_dict.get('username', '—')}</p>
+                            <p><strong>Телефон:</strong> {user_dict.get('phone', '—')}</p>
+                            <p><strong>Компанія:</strong> {user_dict.get('company', '—')}</p>
+                            <p><strong>Регіон:</strong> {user_dict.get('region', '—')}</p>
+                            <p><strong>Роль:</strong> {user_dict.get('role', '—')}</p>
+                            <p><strong>Статус:</strong> {'🚫 Заблокований' if user_dict.get('is_banned') else '✅ Активний'}</p>
+                            <p><strong>Дата реєстрації:</strong> {user_dict.get('created_at', '—')}</p>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <h4>📦 Лоти користувача ({len(lots)})</h4>
+                        {'<p>Немає лотів</p>' if not lots else '<ul>' + ''.join([f"<li>Лот #{lot['id']} - {lot['crop']} ({lot['status']})</li>" for lot in lots]) + '</ul>'}
+                    </div>
+                    <a href="/users" class="btn btn-secondary mt-3">← Назад до списку</a>
+                </div>
+            </body>
+            </html>
+            """
+
+    @app.get("/users/export")
+    @login_required
+    def users_export():
+        """Експорт користувачів у CSV"""
+        import csv
+        from io import StringIO
+        from flask import Response
+        
+        conn = get_conn()
+        
+        if not _has_table(conn, "users"):
+            conn.close()
+            flash("Таблиця користувачів не знайдена", "danger")
+            return redirect(url_for("users_page"))
+        
+        users = conn.execute("SELECT * FROM users ORDER BY id DESC").fetchall()
+        conn.close()
+        
+        if not users:
+            flash("Немає користувачів для експорту", "warning")
+            return redirect(url_for("users_page"))
+        
+        # Створюємо CSV
+        output = StringIO()
+        cols = list(users[0].keys())
+        writer = csv.DictWriter(output, fieldnames=cols)
+        writer.writeheader()
+        
+        for user in users:
+            writer.writerow(dict(user))
+        
+        output.seek(0)
+        
+        return Response(
+            output.getvalue(),
+            mimetype="text/csv",
+            headers={"Content-Disposition": "attachment;filename=users_export.csv"}
+        )
+
+    # -------- Лоти --------
+    @app.get("/lots")
+    @login_required
+    def lots_page():
+        status_filter = request.args.get("status", "").strip()
+        conn = get_conn()
+        
+        if not _has_table(conn, "lots"):
+            conn.close()
+            return render_template("lots.html", rows=[], status=status_filter, cols=[])
+
+        cols = _table_cols(conn, "lots")
+        sql = "SELECT * FROM lots"
+        params = []
+        
+        if status_filter and "status" in cols:
+            sql += " WHERE status=?"
+            params.append(status_filter)
+        
+        sql += " ORDER BY id DESC LIMIT 500"
+        rows = conn.execute(sql, tuple(params)).fetchall()
+        conn.close()
+        
+        return render_template("lots.html", rows=rows, status=status_filter, cols=cols)
+
+    @app.post("/lots/<int:lot_id>/set_status")
+    @login_required
+    def lot_set_status(lot_id: int):
+        new_status = request.form.get("status", "").strip()
+        conn = get_conn()
+        
+        if _has_table(conn, "lots") and _has_col(conn, "lots", "status"):
+            conn.execute("UPDATE lots SET status=? WHERE id=?", (new_status, lot_id))
+            conn.commit()
+            flash(f"Статус лота #{lot_id} змінено на '{new_status}' ✅", "success")
+        else:
+            flash("Неможливо змінити статус лота ❌", "danger")
+        
+        conn.close()
+        return redirect(url_for("lots_page"))
+
+    @app.get("/lots/export")
+    @login_required
+    def lots_export():
+        """Експорт лотів у CSV"""
+        import csv
+        from io import StringIO
+        from flask import Response
+        
+        conn = get_conn()
+        
+        if not _has_table(conn, "lots"):
+            conn.close()
+            flash("Таблиця лотів не знайдена", "danger")
+            return redirect(url_for("lots_page"))
+        
+        lots = conn.execute("SELECT * FROM lots ORDER BY id DESC").fetchall()
+        conn.close()
+        
+        if not lots:
+            flash("Немає лотів для експорту", "warning")
+            return redirect(url_for("lots_page"))
+        
+        # Створюємо CSV
+        output = StringIO()
+        cols = list(lots[0].keys())
+        writer = csv.DictWriter(output, fieldnames=cols)
+        writer.writeheader()
+        
+        for lot in lots:
+            writer.writerow(dict(lot))
+        
+        output.seek(0)
+        
+        return Response(
+            output.getvalue(),
+            mimetype="text/csv",
+            headers={"Content-Disposition": "attachment;filename=lots_export.csv"}
+        )
+
+    @app.get("/lots/<int:lot_id>")
+    @login_required
+    def lot_detail(lot_id: int):
+        """Детальна інформація про лот"""
+        conn = get_conn()
+        
+        if not _has_table(conn, "lots"):
+            flash("Таблиця лотів не знайдена", "danger")
+            conn.close()
+            return redirect(url_for("lots_page"))
+        
+        lot = conn.execute("SELECT * FROM lots WHERE id=?", (lot_id,)).fetchone()
+        
+        if not lot:
+            flash(f"Лот #{lot_id} не знайдений", "danger")
+            conn.close()
+            return redirect(url_for("lots_page"))
+        
+        # Отримуємо інформацію про власника
+        owner = None
+        if _has_table(conn, "users") and lot["owner_user_id"]:
+            owner = conn.execute(
+                "SELECT * FROM users WHERE id=?", 
+                (lot["owner_user_id"],)
+            ).fetchone()
+        
+        conn.close()
+        
+        return render_template("lot_detail.html", lot=lot, owner=owner)
+
+    @app.post("/lots/<int:lot_id>/close")
+    @login_required
+    def lot_close(lot_id: int):
+        """Закриття лота"""
+        conn = get_conn()
+        
+        if _has_table(conn, "lots"):
+            cols = _table_cols(conn, "lots")
+            
+            if "status" in cols:
+                conn.execute("UPDATE lots SET status='closed' WHERE id=?", (lot_id,))
+            elif "is_closed" in cols:
+                conn.execute("UPDATE lots SET is_closed=1 WHERE id=?", (lot_id,))
+            elif "is_active" in cols:
+                conn.execute("UPDATE lots SET is_active=0 WHERE id=?", (lot_id,))
+            
+            conn.commit()
+            flash(f"Лот #{lot_id} закрито ✅", "success")
+        else:
+            flash("Неможливо закрити лот ❌", "danger")
+        
+        conn.close()
+        return redirect(url_for("lots_page"))
+
+    # -------- Налаштування --------
+    @app.get("/settings")
+    @login_required
+    def settings_page():
+        settings_data = {
+            "platform_name": get_setting("platform_name", "Agro Marketplace"),
+            "currency": get_setting("currency", "UAH"),
+            "min_price": get_setting("min_price", "0"),
+            "max_price": get_setting("max_price", "999999"),
+            "example_amount": get_setting("example_amount", "25т"),
+            "auto_moderation": get_setting("auto_moderation", "0"),
+        }
+        return render_template("settings.html", s=settings_data)
+
+    # -------- Контакти --------
+    @app.get("/contacts")
+    @login_required
+    def contacts_page():
+        """Сторінка з усіма контактами користувачів"""
+        conn = get_conn()
+        
+        if not _has_table(conn, "contacts"):
+            conn.close()
+            return render_template("contacts.html", contacts=[])
+        
+        # Отримуємо всі контакти з інформацією про користувачів
+        contacts = conn.execute("""
+            SELECT 
+                c.id,
+                c.user_id,
+                c.contact_user_id,
+                c.status,
+                c.created_at,
+                u1.full_name as user_name,
+                u1.username as user_username,
+                u1.telegram_id as user_telegram_id,
+                u2.full_name as contact_name,
+                u2.username as contact_username,
+                u2.telegram_id as contact_telegram_id
+            FROM contacts c
+            LEFT JOIN users u1 ON c.user_id = u1.id
+            LEFT JOIN users u2 ON c.contact_user_id = u2.id
+            ORDER BY c.created_at DESC
+            LIMIT 500
+        """).fetchall()
+        
+        conn.close()
+        
+        return render_template("contacts.html", contacts=contacts)
+
+    @app.post("/settings/save")
+    @login_required
+    def settings_save():
+        set_setting("platform_name", request.form.get("platform_name", "Agro Marketplace"))
+        set_setting("currency", request.form.get("currency", "UAH"))
+        set_setting("min_price", request.form.get("min_price", "0"))
+        set_setting("max_price", request.form.get("max_price", "999999"))
+        set_setting("example_amount", request.form.get("example_amount", "25т"))
+        set_setting("auto_moderation", "1" if request.form.get("auto_moderation") else "0")
+        
+        flash("Налаштування збережено ✅", "success")
+        return redirect(url_for("settings_page"))
+
+    # -------- API для синхронізації з ботом --------
+    @app.get("/api/ping")
+    def api_ping():
+        """Перевірка доступності"""
+        return jsonify({"status": "ok", "message": "Web panel is alive"})
+
+    @app.route("/api/sync", methods=["GET", "POST"])
+    def api_sync():
+        """Ендпоінт для синхронізації даних з ботом"""
+        if request.method == "POST":
+            data = request.get_json(silent=True)
+            # Тут можна обробити дані від бота
+            return jsonify({
+                "status": "ok",
+                "received": True,
+                "data": data
+            })
+        
+        return jsonify({
+            "status": "ok",
+            "message": "Sync endpoint ready"
+        })
+
+    # -------- Сторінка синхронізації --------
+    @app.get("/sync")
+    @login_required
+    def sync_page():
+        """Сторінка синхронізації"""
+        conn = get_conn()
+        
+        # Статистика синхронізації
+        stats = {
+            "users_count": 0,
+            "lots_count": 0,
+        }
+        
+        if _has_table(conn, "users"):
+            try:
+                stats["users_count"] = conn.execute("SELECT COUNT(*) AS c FROM users").fetchone()["c"]
+            except:
+                pass
+                
+        if _has_table(conn, "lots"):
+            try:
+                stats["lots_count"] = conn.execute("SELECT COUNT(*) AS c FROM lots").fetchone()["c"]
+            except:
+                pass
+        
+        conn.close()
+        
+        # Для шаблону sync.html потрібні ці змінні
+        unprocessed_events = []  # TODO: Отримати з таблиці sync_events якщо вона є
+        total_processed = 0      # TODO: Порахувати оброблені події
+        
+        return render_template(
+            "sync.html", 
+            unprocessed_events=unprocessed_events,
+            total_processed=total_processed,
+            stats=stats
+        )
+
+    return app
+
+
+# ============ HELPERS ============
+
+def _has_table(conn, table: str) -> bool:
+    """Перевірка існування таблиці"""
+    row = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+        (table,)
+    ).fetchone()
+    return bool(row)
+
+
+def _table_cols(conn, table: str) -> list:
+    """Отримання списку колонок таблиці"""
+    try:
+        return [row["name"] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()]
+    except Exception:
+        return []
+
+
+def _has_col(conn, table: str, col: str) -> bool:
+    """Перевірка існування колонки"""
+    return col in _table_cols(conn, table)
+
+
+# ============ ЗАПУСК ============
+
+if __name__ == "__main__":
+    app = create_app()
+    print("=" * 60)
+    print("🌾 Agro Marketplace - Web Panel")
+    print("=" * 60)
+    print(f"🔗 URL: http://0.0.0.0:$PORT")
+    print(f"👤 Login: {ADMIN_USER}")
+    print(f"🔐 Password: {ADMIN_PASS}")
+    print("=" * 60)
+    import os
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)

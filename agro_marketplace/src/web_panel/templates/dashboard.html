@@ -1,0 +1,269 @@
+{% extends "base.html" %}
+
+{% block page_title %}Дашборд{% endblock %}
+{% block page_description %}Огляд статистики та активності платформи{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+  <!-- Stats Cards -->
+  <div class="stats-grid">
+    <div class="stat-card stat-primary">
+      <div class="stat-icon">
+        <i class="fas fa-users"></i>
+      </div>
+      <div class="stat-content">
+        <div class="stat-value">{{ stats.users }}</div>
+        <div class="stat-label">Користувачів</div>
+      </div>
+      <div class="stat-trend trend-up">
+        <i class="fas fa-arrow-up"></i>
+        <span>12%</span>
+      </div>
+    </div>
+
+    <div class="stat-card stat-success">
+      <div class="stat-icon">
+        <i class="fas fa-box"></i>
+      </div>
+      <div class="stat-content">
+        <div class="stat-value">{{ stats.lots }}</div>
+        <div class="stat-label">Всього лотів</div>
+      </div>
+      <div class="stat-trend trend-up">
+        <i class="fas fa-arrow-up"></i>
+        <span>8%</span>
+      </div>
+    </div>
+
+    <div class="stat-card stat-info">
+      <div class="stat-icon">
+        <i class="fas fa-check-circle"></i>
+      </div>
+      <div class="stat-content">
+        <div class="stat-value">{{ stats.active_lots }}</div>
+        <div class="stat-label">Активних лотів</div>
+      </div>
+      <div class="stat-trend trend-up">
+        <i class="fas fa-arrow-up"></i>
+        <span>5%</span>
+      </div>
+    </div>
+
+    <div class="stat-card stat-warning">
+      <div class="stat-icon">
+        <i class="fas fa-ban"></i>
+      </div>
+      <div class="stat-content">
+        <div class="stat-value">{{ stats.banned }}</div>
+        <div class="stat-label">Заблоковано</div>
+      </div>
+      <div class="stat-trend trend-down">
+        <i class="fas fa-arrow-down"></i>
+        <span>3%</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts and Recent Activity -->
+  <div class="dashboard-grid">
+    <!-- Activity Chart -->
+    <div class="dashboard-card">
+      <div class="card-header">
+        <h3 class="card-title">
+          <i class="fas fa-chart-area"></i>
+          Активність за тиждень
+        </h3>
+        <div class="card-actions">
+          <button class="btn-icon" title="Оновити">
+            <i class="fas fa-sync-alt"></i>
+          </button>
+        </div>
+      </div>
+      <div class="card-body">
+        <canvas id="activityChart" height="250"></canvas>
+      </div>
+    </div>
+
+    <!-- Recent Lots -->
+    <div class="dashboard-card">
+      <div class="card-header">
+        <h3 class="card-title">
+          <i class="fas fa-clock"></i>
+          Останні лоти
+        </h3>
+        <a href="/lots" class="btn-text">
+          Показати всі <i class="fas fa-arrow-right"></i>
+        </a>
+      </div>
+      <div class="card-body">
+        <div class="recent-items">
+          {% if recent_lots %}
+            {% for lot in recent_lots %}
+            <div class="recent-item">
+              <div class="item-icon item-icon-{{ 'success' if loop.index0 == 0 else 'info' if loop.index0 == 1 else 'warning' if loop.index0 == 2 else 'danger' }}">
+                <i class="fas fa-wheat-awn"></i>
+              </div>
+              <div class="item-content">
+                <div class="item-title">{{ lot['crop'] or 'Культура' }}</div>
+                <div class="item-meta">{{ lot['volume'] or '0' }}т • {{ lot['region'] or 'Регіон' }}</div>
+              </div>
+              <div class="item-badge badge-{{ 'success' if lot['status'] == 'active' else 'warning' if lot['status'] == 'pending' else 'danger' }}">
+                {{ 'Активний' if lot['status'] == 'active' else 'Очікує' if lot['status'] == 'pending' else 'Закрито' }}
+              </div>
+            </div>
+            {% endfor %}
+          {% else %}
+          <div class="recent-item">
+            <div class="item-icon item-icon-success">
+              <i class="fas fa-wheat-awn"></i>
+            </div>
+            <div class="item-content">
+              <div class="item-title">Пшениця озима</div>
+              <div class="item-meta">25т • Київська область</div>
+            </div>
+            <div class="item-badge badge-success">Активний</div>
+          </div>
+          <div class="recent-item">
+            <div class="item-icon item-icon-info">
+              <i class="fas fa-corn"></i>
+            </div>
+            <div class="item-content">
+              <div class="item-title">Кукурудза</div>
+              <div class="item-meta">50т • Полтавська область</div>
+            </div>
+            <div class="item-badge badge-success">Активний</div>
+          </div>
+          <div class="recent-item">
+            <div class="item-icon item-icon-warning">
+              <i class="fas fa-seedling"></i>
+            </div>
+            <div class="item-content">
+              <div class="item-title">Соняшник</div>
+              <div class="item-meta">30т • Вінницька область</div>
+            </div>
+            <div class="item-badge badge-warning">Очікує</div>
+          </div>
+          <div class="recent-item">
+            <div class="item-icon item-icon-danger">
+              <i class="fas fa-leaf"></i>
+            </div>
+            <div class="item-content">
+              <div class="item-title">Ячмінь</div>
+              <div class="item-meta">20т • Черкаська область</div>
+            </div>
+            <div class="item-badge badge-danger">Закрито</div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Additional Info Cards -->
+  <div class="info-grid">
+    <div class="info-card">
+      <div class="info-icon">
+        <i class="fas fa-telegram"></i>
+      </div>
+      <div class="info-content">
+        <div class="info-title">Telegram Bot</div>
+        <div class="info-value">Online</div>
+        <div class="info-status status-online">
+          <span class="status-dot"></span>
+          Працює
+        </div>
+      </div>
+    </div>
+
+    <div class="info-card">
+      <div class="info-icon">
+        <i class="fas fa-database"></i>
+      </div>
+      <div class="info-content">
+        <div class="info-title">База даних</div>
+        <div class="info-value">Синхронізовано</div>
+        <div class="info-status status-online">
+          <span class="status-dot"></span>
+          Актуальна
+        </div>
+      </div>
+    </div>
+
+    <div class="info-card">
+      <div class="info-icon">
+        <i class="fas fa-server"></i>
+      </div>
+      <div class="info-content">
+        <div class="info-title">Сервер</div>
+        <div class="info-value">Стабільний</div>
+        <div class="info-status status-online">
+          <span class="status-dot"></span>
+          99.9% uptime
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+// Activity Chart з реальними даними
+const ctx = document.getElementById('activityChart');
+if (ctx) {
+  const weeklyData = {{ weekly_data | tojson | safe }};
+  
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: weeklyData.labels || ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд'],
+      datasets: [{
+        label: 'Нові лоти',
+        data: weeklyData.new_lots || [0, 0, 0, 0, 0, 0, 0],
+        borderColor: '#10b981',
+        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+        tension: 0.4,
+        fill: true
+      }, {
+        label: 'Нові користувачі',
+        data: weeklyData.new_users || [0, 0, 0, 0, 0, 0, 0],
+        borderColor: '#3b82f6',
+        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+        tension: 0.4,
+        fill: true
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: true,
+          position: 'top',
+        },
+        tooltip: {
+          mode: 'index',
+          intersect: false,
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          grid: {
+            color: 'rgba(0, 0, 0, 0.05)'
+          },
+          ticks: {
+            stepSize: 1,
+            precision: 0
+          }
+        },
+        x: {
+          grid: {
+            display: false
+          }
+        }
+      }
+    }
+  });
+}
+</script>
+{% endblock %}

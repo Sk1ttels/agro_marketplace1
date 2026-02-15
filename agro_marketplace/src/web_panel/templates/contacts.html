@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block page_title %}Контакти{% endblock %}
+{% block page_description %}Перегляд всіх контактів користувачів{% endblock %}
+
+{% block content %}
+<div class="contacts-container">
+  <!-- Page Controls -->
+  <div class="page-controls">
+    <div class="page-title">
+      <h2>
+        <i class="fas fa-address-book"></i>
+        Контакти користувачів
+      </h2>
+    </div>
+
+    <div class="page-actions">
+      <button class="btn btn-secondary" onclick="window.location.reload()">
+        <i class="fas fa-sync-alt"></i>
+        Оновити
+      </button>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="quick-stats">
+    <div class="quick-stat-item">
+      <i class="fas fa-address-book text-primary"></i>
+      <div>
+        <div class="quick-stat-value">{{ contacts|length }}</div>
+        <div class="quick-stat-label">Всього зв'язків</div>
+      </div>
+    </div>
+    <div class="quick-stat-item">
+      <i class="fas fa-check-circle text-success"></i>
+      <div>
+        <div class="quick-stat-value">
+          {{ contacts|selectattr('status', 'equalto', 'accepted')|list|length }}
+        </div>
+        <div class="quick-stat-label">Підтверджено</div>
+      </div>
+    </div>
+    <div class="quick-stat-item">
+      <i class="fas fa-clock text-warning"></i>
+      <div>
+        <div class="quick-stat-value">
+          {{ contacts|selectattr('status', 'equalto', 'pending')|list|length }}
+        </div>
+        <div class="quick-stat-label">Очікують</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Contacts Table -->
+  <div class="table-card">
+    <div class="table-header">
+      <h3 class="table-title">
+        <i class="fas fa-users"></i>
+        Список контактів
+      </h3>
+    </div>
+    <div class="table-wrapper">
+      {% if contacts %}
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Користувач</th>
+            <th>⟷</th>
+            <th>Контакт</th>
+            <th>Статус</th>
+            <th>Дата</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for contact in contacts %}
+          <tr>
+            <td>
+              <span class="table-id">#{{ contact['id'] }}</span>
+            </td>
+            <td>
+              <div class="user-cell">
+                <div class="user-avatar-sm">
+                  <i class="fas fa-user"></i>
+                </div>
+                <div>
+                  <a href="/users/{{ contact['user_id'] }}" class="user-link">
+                    <strong>{{ contact['user_name'] or 'Без імені' }}</strong>
+                  </a>
+                  {% if contact['user_username'] %}
+                  <div class="text-muted small">@{{ contact['user_username'] }}</div>
+                  {% endif %}
+                  <div class="text-muted small">TG: {{ contact['user_telegram_id'] }}</div>
+                </div>
+              </div>
+            </td>
+            <td class="text-center">
+              <i class="fas fa-arrows-alt-h text-muted"></i>
+            </td>
+            <td>
+              <div class="user-cell">
+                <div class="user-avatar-sm">
+                  <i class="fas fa-user"></i>
+                </div>
+                <div>
+                  <a href="/users/{{ contact['contact_user_id'] }}" class="user-link">
+                    <strong>{{ contact['contact_name'] or 'Без імені' }}</strong>
+                  </a>
+                  {% if contact['contact_username'] %}
+                  <div class="text-muted small">@{{ contact['contact_username'] }}</div>
+                  {% endif %}
+                  <div class="text-muted small">TG: {{ contact['contact_telegram_id'] }}</div>
+                </div>
+              </div>
+            </td>
+            <td>
+              {% if contact['status'] == 'accepted' %}
+              <span class="badge badge-success">
+                <i class="fas fa-check-circle"></i>
+                Підтверджено
+              </span>
+              {% elif contact['status'] == 'pending' %}
+              <span class="badge badge-warning">
+                <i class="fas fa-clock"></i>
+                Очікує
+              </span>
+              {% else %}
+              <span class="badge badge-secondary">
+                {{ contact['status'] }}
+              </span>
+              {% endif %}
+            </td>
+            <td>
+              <span class="text-muted">
+                <i class="far fa-calendar"></i>
+                {{ contact['created_at'] or '—' }}
+              </span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty-state">
+        <div class="empty-icon">
+          <i class="fas fa-address-book"></i>
+        </div>
+        <h3>Контактів не знайдено</h3>
+        <p>Користувачі ще не додали один одного в контакти</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<style>
+.user-link {
+  color: #3b82f6;
+  text-decoration: none;
+}
+
+.user-link:hover {
+  text-decoration: underline;
+}
+</style>
+{% endblock %}

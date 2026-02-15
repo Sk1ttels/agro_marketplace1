@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+
+{% block page_title %}Користувачі{% endblock %}
+{% block page_description %}Управління користувачами платформи{% endblock %}
+
+{% block content %}
+<div class="users-container">
+  <!-- Search and Filters -->
+  <div class="page-controls">
+    <form method="GET" action="/users" class="search-form">
+      <div class="search-input-wrapper">
+        <i class="fas fa-search search-icon"></i>
+        <input 
+          type="text" 
+          name="q" 
+          class="search-input" 
+          placeholder="Пошук за ім'ям, ID, username..."
+          value="{{ q }}"
+        >
+        {% if q %}
+        <button type="button" class="search-clear" onclick="window.location.href='/users'">
+          <i class="fas fa-times"></i>
+        </button>
+        {% endif %}
+      </div>
+      <button type="submit" class="btn btn-primary">
+        <i class="fas fa-search"></i>
+        Знайти
+      </button>
+    </form>
+
+    <div class="page-actions">
+      <button class="btn btn-secondary" onclick="window.location.reload()">
+        <i class="fas fa-sync-alt"></i>
+        Оновити
+      </button>
+      <a href="/users/export" class="btn btn-success">
+        <i class="fas fa-download"></i>
+        Експорт
+      </a>
+    </div>
+  </div>
+
+  <!-- Users Table -->
+  <div class="table-card">
+    <div class="table-header">
+      <h3 class="table-title">
+        <i class="fas fa-users"></i>
+        Список користувачів
+        <span class="badge badge-info">{{ rows|length }}</span>
+      </h3>
+    </div>
+    <div class="table-wrapper">
+      {% if rows %}
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Telegram ID</th>
+            <th>Ім'я користувача</th>
+            <th>Username</th>
+            <th>Статус</th>
+            <th>Дата реєстрації</th>
+            <th class="text-end">Дії</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr>
+            <td>
+              <span class="table-id">#{{ row['id'] }}</span>
+            </td>
+            <td>
+              <div class="user-cell">
+                <div class="user-avatar-sm">
+                  <i class="fas fa-user"></i>
+                </div>
+                <span>{{ row['tg_id'] or row['telegram_id'] or '-' }}</span>
+              </div>
+            </td>
+            <td>
+              <strong>{{ row['full_name'] or 'Без імені' }}</strong>
+            </td>
+            <td>
+              {% if row['username'] %}
+              <a href="https://t.me/{{ row['username'] }}" target="_blank" class="link-telegram">
+                @{{ row['username'] }}
+                <i class="fas fa-external-link-alt"></i>
+              </a>
+              {% else %}
+              <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if row['is_banned'] %}
+              <span class="badge badge-danger">
+                <i class="fas fa-ban"></i>
+                Заблокований
+              </span>
+              {% else %}
+              <span class="badge badge-success">
+                <i class="fas fa-check-circle"></i>
+                Активний
+              </span>
+              {% endif %}
+            </td>
+            <td>
+              <span class="text-muted">
+                <i class="far fa-calendar"></i>
+                {{ row['created_at'] or '—' }}
+              </span>
+            </td>
+            <td class="text-end">
+              <div class="action-buttons">
+                <a href="/users/{{ row['id'] }}" class="btn-action btn-action-info" title="Деталі">
+                  <i class="fas fa-eye"></i>
+                </a>
+                {% if row['is_banned'] %}
+                <form method="POST" action="/users/{{ row['id'] }}/unban" style="display:inline">
+                  <button type="submit" class="btn-action btn-action-success" title="Розблокувати">
+                    <i class="fas fa-unlock"></i>
+                  </button>
+                </form>
+                {% else %}
+                <form method="POST" action="/users/{{ row['id'] }}/ban" style="display:inline">
+                  <button type="submit" class="btn-action btn-action-danger" title="Заблокувати" 
+                    onclick="return confirm('Ви впевнені, що хочете заблокувати цього користувача?')">
+                    <i class="fas fa-ban"></i>
+                  </button>
+                </form>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty-state">
+        <div class="empty-icon">
+          <i class="fas fa-users-slash"></i>
+        </div>
+        <h3>Користувачів не знайдено</h3>
+        <p>{% if q %}Спробуйте змінити параметри пошуку{% else %}Додайте першого користувача через Telegram Bot{% endif %}</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Quick Stats -->
+  <div class="quick-stats">
+    <div class="quick-stat-item">
+      <i class="fas fa-users text-primary"></i>
+      <div>
+        <div class="quick-stat-value">{{ rows|length }}</div>
+        <div class="quick-stat-label">Знайдено</div>
+      </div>
+    </div>
+    <div class="quick-stat-item">
+      <i class="fas fa-check-circle text-success"></i>
+      <div>
+        <div class="quick-stat-value">
+          {{ rows|selectattr('is_banned', 'equalto', 0)|list|length }}
+        </div>
+        <div class="quick-stat-label">Активних</div>
+      </div>
+    </div>
+    <div class="quick-stat-item">
+      <i class="fas fa-ban text-danger"></i>
+      <div>
+        <div class="quick-stat-value">
+          {{ rows|selectattr('is_banned', 'equalto', 1)|list|length }}
+        </div>
+        <div class="quick-stat-label">Заблоковано</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

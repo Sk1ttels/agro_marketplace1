@@ -1,0 +1,297 @@
+{% extends "base.html" %}
+
+{% block page_title %}Лот #{{ lot['id'] }}{% endblock %}
+{% block page_description %}Детальна інформація про лот{% endblock %}
+
+{% block content %}
+<div class="detail-container">
+  <!-- Back Button -->
+  <div class="mb-3">
+    <a href="/lots" class="btn btn-secondary">
+      <i class="fas fa-arrow-left"></i>
+      Назад до списку
+    </a>
+  </div>
+
+  <!-- Lot Card -->
+  <div class="detail-card">
+    <div class="detail-header">
+      <div>
+        <h2>
+          <i class="fas fa-box"></i>
+          Лот #{{ lot['id'] }}
+        </h2>
+        <p class="text-muted">{{ lot['crop'] or 'Культура не вказана' }}</p>
+      </div>
+      <div>
+        {% if lot['status'] == 'active' or lot['status'] == 'open' or lot['status'] == 'published' %}
+        <span class="badge badge-success badge-lg">
+          <i class="fas fa-check-circle"></i>
+          Активний
+        </span>
+        {% elif lot['status'] == 'pending' %}
+        <span class="badge badge-warning badge-lg">
+          <i class="fas fa-clock"></i>
+          Очікує
+        </span>
+        {% else %}
+        <span class="badge badge-danger badge-lg">
+          <i class="fas fa-times-circle"></i>
+          Закритий
+        </span>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="detail-body">
+      <div class="detail-grid">
+        <!-- Основна інформація -->
+        <div class="detail-section">
+          <h3 class="section-title">
+            <i class="fas fa-info-circle"></i>
+            Основна інформація
+          </h3>
+          <div class="info-list">
+            <div class="info-item">
+              <span class="info-label">ID лота:</span>
+              <span class="info-value">#{{ lot['id'] }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Тип:</span>
+              <span class="info-value">
+                {% if lot['type'] == 'sale' %}
+                <i class="fas fa-tag text-success"></i> Продаж
+                {% elif lot['type'] == 'purchase' %}
+                <i class="fas fa-shopping-cart text-info"></i> Купівля
+                {% else %}
+                {{ lot['type'] }}
+                {% endif %}
+              </span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Культура:</span>
+              <span class="info-value"><strong>{{ lot['crop'] or '—' }}</strong></span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Обсяг:</span>
+              <span class="info-value">{{ lot['volume'] or '0' }} тонн</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Ціна:</span>
+              <span class="info-value">
+                {% if lot['price'] %}
+                <strong>{{ lot['price'] }} UAH</strong>
+                {% else %}
+                Договірна
+                {% endif %}
+              </span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Регіон:</span>
+              <span class="info-value">
+                <i class="fas fa-map-marker-alt"></i>
+                {{ lot['region'] or '—' }}
+              </span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Статус:</span>
+              <span class="info-value">{{ lot['status'] or '—' }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Дата створення:</span>
+              <span class="info-value">
+                <i class="far fa-calendar"></i>
+                {{ lot['created_at'] or '—' }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Власник -->
+        <div class="detail-section">
+          <h3 class="section-title">
+            <i class="fas fa-user"></i>
+            Власник лота
+          </h3>
+          {% if owner %}
+          <div class="owner-card">
+            <div class="owner-avatar">
+              <i class="fas fa-user"></i>
+            </div>
+            <div class="owner-info">
+              <h4>{{ owner['full_name'] or 'Без імені' }}</h4>
+              {% if owner['username'] %}
+              <p class="text-muted">@{{ owner['username'] }}</p>
+              {% endif %}
+              <p class="text-muted">Telegram ID: {{ owner['telegram_id'] }}</p>
+              {% if owner['phone'] %}
+              <p><i class="fas fa-phone"></i> {{ owner['phone'] }}</p>
+              {% endif %}
+              {% if owner['company'] %}
+              <p><i class="fas fa-building"></i> {{ owner['company'] }}</p>
+              {% endif %}
+              <a href="/users/{{ owner['id'] }}" class="btn btn-sm btn-primary mt-2">
+                <i class="fas fa-eye"></i>
+                Переглянути профіль
+              </a>
+            </div>
+          </div>
+          {% else %}
+          <p class="text-muted">Інформація про власника недоступна</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="detail-footer">
+      {% if lot['status'] == 'active' or lot['status'] == 'open' or lot['status'] == 'published' %}
+      <form method="POST" action="/lots/{{ lot['id'] }}/close" style="display: inline;">
+        <button type="submit" class="btn btn-danger" onclick="return confirm('Закрити цей лот?')">
+          <i class="fas fa-times-circle"></i>
+          Закрити лот
+        </button>
+      </form>
+      {% endif %}
+      
+      <form method="POST" action="/lots/{{ lot['id'] }}/set_status" style="display: inline;">
+        <select name="status" class="form-select" style="display: inline-block; width: auto;" onchange="this.form.submit()">
+          <option value="">Змінити статус...</option>
+          <option value="active">Активний</option>
+          <option value="pending">Очікує</option>
+          <option value="closed">Закритий</option>
+        </select>
+      </form>
+    </div>
+  </div>
+</div>
+
+<style>
+.detail-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.detail-card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  overflow: hidden;
+}
+
+.detail-header {
+  padding: 24px;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.detail-body {
+  padding: 24px;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+@media (max-width: 768px) {
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.detail-section {
+  background: #f9fafb;
+  padding: 20px;
+  border-radius: 8px;
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: #1f2937;
+}
+
+.info-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.info-item:last-child {
+  border-bottom: none;
+}
+
+.info-label {
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.info-value {
+  color: #1f2937;
+  font-weight: 600;
+}
+
+.owner-card {
+  display: flex;
+  gap: 16px;
+  padding: 16px;
+  background: white;
+  border-radius: 8px;
+}
+
+.owner-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #3b82f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.owner-info h4 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+}
+
+.owner-info p {
+  margin: 4px 0;
+  font-size: 14px;
+}
+
+.detail-footer {
+  padding: 24px;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  gap: 12px;
+}
+
+.badge-lg {
+  font-size: 14px;
+  padding: 8px 16px;
+}
+
+.form-select {
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+}
+</style>
+{% endblock %}

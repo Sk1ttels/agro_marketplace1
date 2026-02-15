@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+
+{% block page_title %}Налаштування{% endblock %}
+{% block page_description %}Конфігурація платформи та синхронізація з ботом{% endblock %}
+
+{% block content %}
+<div class="settings-container">
+  <form method="POST" action="/settings/save" class="settings-form">
+    
+    <!-- Platform Settings -->
+    <div class="settings-section">
+      <div class="section-header">
+        <h2 class="section-title">
+          <i class="fas fa-cog"></i>
+          Основні налаштування
+        </h2>
+        <p class="section-description">Загальні параметри платформи</p>
+      </div>
+
+      <div class="settings-grid">
+        <div class="setting-item">
+          <label for="platform_name" class="setting-label">
+            <i class="fas fa-tag"></i>
+            Назва платформи
+          </label>
+          <input 
+            type="text" 
+            id="platform_name" 
+            name="platform_name" 
+            class="form-control" 
+            value="{{ s['platform_name'] }}"
+            placeholder="Agro Marketplace"
+          >
+          <small class="setting-hint">Відображається в повідомленнях бота</small>
+        </div>
+
+        <div class="setting-item">
+          <label for="currency" class="setting-label">
+            <i class="fas fa-money-bill-wave"></i>
+            Валюта
+          </label>
+          <select id="currency" name="currency" class="form-control">
+            <option value="UAH" {% if s['currency'] == 'UAH' %}selected{% endif %}>UAH - Гривня</option>
+            <option value="USD" {% if s['currency'] == 'USD' %}selected{% endif %}>USD - Долар</option>
+            <option value="EUR" {% if s['currency'] == 'EUR' %}selected{% endif %}>EUR - Євро</option>
+          </select>
+          <small class="setting-hint">Основна валюта для операцій</small>
+        </div>
+
+        <div class="setting-item">
+          <label for="min_price" class="setting-label">
+            <i class="fas fa-arrow-down"></i>
+            Мінімальна ціна
+          </label>
+          <input 
+            type="number" 
+            id="min_price" 
+            name="min_price" 
+            class="form-control" 
+            value="{{ s['min_price'] }}"
+            min="0"
+          >
+          <small class="setting-hint">Мінімальна ціна для лотів</small>
+        </div>
+
+        <div class="setting-item">
+          <label for="max_price" class="setting-label">
+            <i class="fas fa-arrow-up"></i>
+            Максимальна ціна
+          </label>
+          <input 
+            type="number" 
+            id="max_price" 
+            name="max_price" 
+            class="form-control" 
+            value="{{ s['max_price'] }}"
+            min="0"
+          >
+          <small class="setting-hint">Максимальна ціна для лотів</small>
+        </div>
+
+        <div class="setting-item">
+          <label for="example_amount" class="setting-label">
+            <i class="fas fa-balance-scale"></i>
+            Приклад об'єму
+          </label>
+          <input 
+            type="text" 
+            id="example_amount" 
+            name="example_amount" 
+            class="form-control" 
+            value="{{ s['example_amount'] }}"
+            placeholder="25т"
+          >
+          <small class="setting-hint">Приклад для користувачів (напр. "25т")</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bot Settings -->
+    <div class="settings-section">
+      <div class="section-header">
+        <h2 class="section-title">
+          <i class="fas fa-robot"></i>
+          Налаштування Telegram Bot
+        </h2>
+        <p class="section-description">Параметри взаємодії з ботом</p>
+      </div>
+
+      <div class="settings-grid">
+        <div class="setting-item setting-item-wide">
+          <div class="setting-toggle">
+            <div>
+              <label for="auto_moderation" class="setting-label">
+                <i class="fas fa-shield-alt"></i>
+                Автоматична модерація
+              </label>
+              <small class="setting-hint">Автоматична перевірка нових лотів</small>
+            </div>
+            <label class="toggle-switch">
+              <input 
+                type="checkbox" 
+                id="auto_moderation" 
+                name="auto_moderation" 
+                {% if s['auto_moderation'] == '1' %}checked{% endif %}
+              >
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="setting-item setting-item-wide">
+          <div class="setting-toggle">
+            <div>
+              <label class="setting-label">
+                <i class="fas fa-bell"></i>
+                Сповіщення в Telegram
+              </label>
+              <small class="setting-hint">Отримувати сповіщення про нові події</small>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sync Status -->
+    <div class="settings-section">
+      <div class="section-header">
+        <h2 class="section-title">
+          <i class="fas fa-sync-alt"></i>
+          Статус синхронізації
+        </h2>
+        <p class="section-description">Інформація про підключення до бота</p>
+      </div>
+
+      <div class="sync-status-card">
+        <div class="sync-item">
+          <div class="sync-icon sync-icon-success">
+            <i class="fas fa-database"></i>
+          </div>
+          <div class="sync-content">
+            <h4>База даних</h4>
+            <p>Синхронізовано зараз</p>
+            <span class="sync-time">
+              <i class="far fa-clock"></i>
+              Оновлено щойно
+            </span>
+          </div>
+        </div>
+
+        <div class="sync-item">
+          <div class="sync-icon sync-icon-success">
+            <i class="fab fa-telegram"></i>
+          </div>
+          <div class="sync-content">
+            <h4>Telegram Bot</h4>
+            <p>Підключено та працює</p>
+            <span class="sync-time">
+              <i class="fas fa-signal"></i>
+              Статус: Online
+            </span>
+          </div>
+        </div>
+
+        <div class="sync-item">
+          <div class="sync-icon sync-icon-success">
+            <i class="fas fa-server"></i>
+          </div>
+          <div class="sync-content">
+            <h4>Сервер</h4>
+            <p>Працює стабільно</p>
+            <span class="sync-time">
+              <i class="fas fa-check-circle"></i>
+              Uptime: 99.9%
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Save Button -->
+    <div class="settings-actions">
+      <button type="button" class="btn btn-secondary" onclick="window.location.reload()">
+        <i class="fas fa-times"></i>
+        Скасувати
+      </button>
+      <button type="submit" class="btn btn-primary">
+        <i class="fas fa-save"></i>
+        Зберегти налаштування
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}
