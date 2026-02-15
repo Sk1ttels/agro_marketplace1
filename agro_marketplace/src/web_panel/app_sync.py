@@ -28,7 +28,8 @@ from .db import (
 )
 
 from .auth import AdminUser, check_login
-from bot.services.sync_service import FileBasedSync
+from src.bot.services.sync_service import FileBasedSync
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
