@@ -104,7 +104,6 @@ if __name__ == "__main__":
     logger.info("🌾 Agro Marketplace - Unified Launcher v2.0")
     logger.info("="*60)
     
-    global web_process
     web_process = mp.Process(target=run_web_server, name="WebServer")
     web_process.daemon = False
     web_process.start()
