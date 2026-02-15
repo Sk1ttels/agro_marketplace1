@@ -86,7 +86,8 @@ async def main():
     # Підключення AdvertisementMiddleware
     ad_middleware = AdvertisementMiddleware(str(DB_FILE))
     dp.message.middleware(ad_middleware)
-    logger.info("✅ AdvertisementMiddleware підключено")
+    dp.callback_query.middleware(ad_middleware)
+    logger.info("✅ AdvertisementMiddleware підключено (message+callback)")
 
     # Підключення роутерів
     dp.include_router(start.router)
