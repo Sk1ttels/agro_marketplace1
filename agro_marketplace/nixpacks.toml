@@ -1,19 +1,15 @@
 [phases.setup]
-# Use Python from Nix. Don't add "pip" as a nix package (it breaks builds).
-nixPkgs = ["python311"]
+nixPkgs = [
+  "python311",
+  "python311Packages.pip",
+  "python311Packages.setuptools",
+  "python311Packages.wheel"
+]
 
 [phases.install]
 cmds = [
-  # Some Nix Python builds don't ship the `pip` executable wrapper; ensure it exists.
-  "python -m ensurepip --upgrade",
-  "python -m pip install --upgrade pip",
-  "python -m pip install -r requirements.txt"
-]
-
-[phases.build]
-cmds = [
-  "mkdir -p data",
-  "mkdir -p logs"
+  "pip --version",
+  "pip install -r requirements.txt"
 ]
 
 [start]
