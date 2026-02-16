@@ -26,3 +26,14 @@ This repo contains a Telegram bot (worker) and a Flask web panel (web).
 ## Notes
 - Railway provides `PORT` automatically for the web service.
 - SQLite file lives inside the container filesystem. If you redeploy, the DB may reset unless you use a volume.
+
+
+## Single-service mode (one Railway service for bot + web)
+
+If you want Railway to run **both** the Flask site and Telegram bot in one container, use:
+
+- Start: `python run_unified.py`
+- In this repo it is already configured in `railway.json` as:
+  - `. /opt/venv/bin/activate && python run_unified.py`
+
+This mode is simpler to deploy, but if one process crashes the whole service restarts.
