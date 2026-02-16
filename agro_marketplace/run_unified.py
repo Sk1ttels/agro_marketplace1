@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Unified Runner for Agro Marketplace
-Запускає веб-панель і бота в одному Railway сервісі.
-"""
+"""Unified Runner for Agro Marketplace (Railway)."""
 
 import asyncio
 import logging
@@ -13,21 +10,18 @@ import signal
 import sys
 import time
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 web_process: mp.Process | None = None
 bot_process: mp.Process | None = None
+STOP_REQUESTED = False
+BOT_RESTART_DELAY = int(os.getenv("BOT_RESTART_DELAY", "5"))
 
 
 def terminate_process(proc: mp.Process | None, name: str) -> None:
-    """Акуратно завершує дочірній процес."""
     if not proc or not proc.is_alive():
         return
-
     logger.info("🛑 Зупинка %s...", name)
     proc.terminate()
     proc.join(timeout=10)
@@ -37,7 +31,8 @@ def terminate_process(proc: mp.Process | None, name: str) -> None:
 
 
 def signal_handler(signum, frame):
-    """Обробка сигналів для graceful shutdown."""
+    global STOP_REQUESTED
+    STOP_REQUESTED = True
     logger.info("Отримано сигнал %s, зупиняємо сервіси...", signum)
     terminate_process(bot_process, "Bot")
     terminate_process(web_process, "Web")
@@ -45,7 +40,6 @@ def signal_handler(signum, frame):
 
 
 def run_web_server():
-    """Запуск веб-сервера (Gunicorn)."""
     try:
         import gunicorn.app.base
 
@@ -73,17 +67,14 @@ def run_web_server():
             "keepalive": 5,
             "preload_app": True,
         }
-
         logger.info("🌐 Запуск веб-сервера на порту %s", os.environ.get("PORT", 8080))
         StandaloneApplication(app, options).run()
-
     except Exception:
         logger.exception("❌ Помилка веб-сервера")
         sys.exit(1)
 
 
 def run_bot_server():
-    """Запуск Telegram-бота через основний entrypoint."""
     try:
         from run_bot import main as bot_main
 
@@ -96,9 +87,22 @@ def run_bot_server():
         sys.exit(1)
 
 
+def start_web() -> mp.Process:
+    proc = mp.Process(target=run_web_server, name="WebServer", daemon=False)
+    proc.start()
+    logger.info("✅ Web process started (pid=%s)", proc.pid)
+    return proc
+
+
+def start_bot() -> mp.Process:
+    proc = mp.Process(target=run_bot_server, name="BotServer", daemon=False)
+    proc.start()
+    logger.info("✅ Bot process started (pid=%s)", proc.pid)
+    return proc
+
+
 def main() -> int:
     global web_process, bot_process
-
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
@@ -106,34 +110,28 @@ def main() -> int:
     logger.info("🌾 Agro Marketplace - Unified Launcher")
     logger.info("=" * 60)
 
-    web_process = mp.Process(target=run_web_server, name="WebServer", daemon=False)
-    bot_process = mp.Process(target=run_bot_server, name="BotServer", daemon=False)
-
-    web_process.start()
+    web_process = start_web()
     time.sleep(2)
-    bot_process.start()
-
-    logger.info("✅ Веб та бот запущені")
+    bot_process = start_bot()
 
     try:
-        while True:
+        while not STOP_REQUESTED:
             if not web_process.is_alive():
                 logger.error("❌ Web процес завершився (code=%s)", web_process.exitcode)
                 terminate_process(bot_process, "Bot")
                 return 1
 
             if not bot_process.is_alive():
-                logger.error("❌ Bot процес завершився (code=%s)", bot_process.exitcode)
-                terminate_process(web_process, "Web")
-                return 1
+                logger.error("⚠️ Bot процес завершився (code=%s), пробую перезапуск через %sс", bot_process.exitcode, BOT_RESTART_DELAY)
+                time.sleep(BOT_RESTART_DELAY)
+                bot_process = start_bot()
 
             time.sleep(2)
-    except KeyboardInterrupt:
-        logger.info("⏹ Отримано Ctrl+C")
-        return 0
     finally:
         terminate_process(bot_process, "Bot")
         terminate_process(web_process, "Web")
+
+    return 0
 
 
 if __name__ == "__main__":
