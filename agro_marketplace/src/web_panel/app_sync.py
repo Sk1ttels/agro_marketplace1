@@ -83,31 +83,37 @@ def create_app() -> Flask:
     @login_required
     def dashboard():
         conn = get_conn()
-        users = conn.execute("SELECT COUNT(*) AS c FROM users").fetchone()["c"] if _has_table(conn, "users") else 0
-        lots = conn.execute("SELECT COUNT(*) AS c FROM lots").fetchone()["c"] if _has_table(conn, "lots") else 0
-        banned = (
-            conn.execute("SELECT COUNT(*) AS c FROM users WHERE is_banned=1").fetchone()["c"]
-            if _has_table(conn, "users") and _has_col(conn, "users", "is_banned")
-            else 0
-        )
-        
-        # Get recent activity stats
-        active_lots = conn.execute(
-            "SELECT COUNT(*) AS c FROM lots WHERE status='active'"
-        ).fetchone()["c"] if _has_table(conn, "lots") else 0
-        
-        total_offers = conn.execute(
-            "SELECT COUNT(*) AS c FROM offers"
-        ).fetchone()["c"] if _has_table(conn, "offers") else 0
-        
+        stats = {
+            "users": conn.execute("SELECT COUNT(*) AS c FROM users").fetchone()["c"] if _has_table(conn, "users") else 0,
+            "lots": conn.execute("SELECT COUNT(*) AS c FROM lots").fetchone()["c"] if _has_table(conn, "lots") else 0,
+            "banned": (
+                conn.execute("SELECT COUNT(*) AS c FROM users WHERE is_banned=1").fetchone()["c"]
+                if _has_table(conn, "users") and _has_col(conn, "users", "is_banned")
+                else 0
+            ),
+            "active_lots": (
+                conn.execute("SELECT COUNT(*) AS c FROM lots WHERE status='active'").fetchone()["c"]
+                if _has_table(conn, "lots")
+                else 0
+            ),
+        }
+
+        weekly_data = {
+            "labels": ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Нд"],
+            "new_users": [0, 0, 0, 0, 0, 0, 0],
+            "new_lots": [0, 0, 0, 0, 0, 0, 0],
+        }
+
+        recent_lots = []
+        if _has_table(conn, "lots"):
+            recent_lots = conn.execute("SELECT * FROM lots ORDER BY id DESC LIMIT 4").fetchall()
+
         conn.close()
         return render_template(
             "dashboard.html", 
-            users=users, 
-            lots=lots, 
-            banned=banned,
-            active_lots=active_lots,
-            total_offers=total_offers
+            stats=stats,
+            weekly_data=weekly_data,
+            recent_lots=recent_lots,
         )
 
     # -------- Users --------
