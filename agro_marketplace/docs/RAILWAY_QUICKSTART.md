@@ -37,3 +37,4 @@ If you want Railway to run **both** the Flask site and Telegram bot in one conta
   - `. /opt/venv/bin/activate && python run_unified.py`
 
 This mode is simpler to deploy, but if one process crashes the whole service restarts.
+- `run_unified.py` запускає web через `wsgi:app` і бота через `run_bot.py`, тож працюють всі основні middleware/handlers.
