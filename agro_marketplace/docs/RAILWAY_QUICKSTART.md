@@ -53,3 +53,14 @@ If GitHub shows conflicts in `wsgi.py`, `Procfile`, or `railway.json`, keep thes
   - `"startCommand": "ENABLE_WSGI_BOT_AUTOSTART=0 . /opt/venv/bin/activate && python run_unified.py"`
 
 This combination prevents duplicate Telegram polling instances (`TelegramConflictError`) and keeps web routes (`/contacts`, `/advertisements`) served by the full panel app.
+
+
+### Quick conflict fix command
+If GitHub shows conflicts in `Procfile`, `railway.json`, or `wsgi.py`, run:
+
+```bash
+python scripts/fix_deploy_conflicts.py
+python scripts/validate_railway_json.py
+```
+
+Then commit and push. This removes accidental `<<<<<<< ======= >>>>>>>` markers and restores canonical startup config.
