@@ -759,7 +759,7 @@ async def send_my_contact_in_chat(cb: CallbackQuery, state: FSMContext):
 async def exit_chat_cb(cb: CallbackQuery, state: FSMContext):
     await state.clear()
     raw = os.getenv("ADMIN_IDS", "")
-    is_adm = str(cb.from_user.id) in raw
+    is_adm = str(cb.from_user.id) in raw.split(',')
     await cb.message.answer("Вийшли з чату ✅", reply_markup=main_menu(is_admin=is_adm))
     await cb.answer()
 
@@ -768,7 +768,7 @@ async def exit_chat_cb(cb: CallbackQuery, state: FSMContext):
 async def exit_chat_btn(message: Message, state: FSMContext):
     await state.clear()
     raw = os.getenv("ADMIN_IDS", "")
-    is_adm = str(message.from_user.id) in raw
+    is_adm = str(message.from_user.id) in raw.split(',')
     await message.answer("Вийшли з чату ✅", reply_markup=main_menu(is_admin=is_adm))
 
 

@@ -91,6 +91,9 @@
     <div class="ad-foot">
       <span style="font-size:11.5px;color:var(--tm)">{{ (ad['created_at'] or '—')[:10] }}</span>
       <div class="act-g">
+        <button type="button" class="act p" title="Редагувати" onclick="openEditModal({{ ad['id'] }}, {{ ad|tojson }})">
+          <i class="fas fa-edit"></i>
+        </button>
         <form method="POST" action="/advertisements/{{ ad['id'] }}/toggle" style="display:inline">
           <button type="submit" class="act {% if ad['is_active'] %}d{% else %}s{% endif %}" title="{% if ad['is_active'] %}Вимкнути{% else %}Увімкнути{% endif %}">
             <i class="fas fa-{% if ad['is_active'] %}pause{% else %}play{% endif %}"></i>
@@ -123,5 +126,92 @@ function toggleForm() {
   f.style.display = visible ? 'none' : 'block';
   i.className = visible ? 'fas fa-chevron-down' : 'fas fa-chevron-up';
 }
+
+function openEditModal(id, ad) {
+  document.getElementById('editAdId').value = id;
+  document.getElementById('editTitle').value = ad.title || '';
+  document.getElementById('editType').value = ad.type || 'text';
+  document.getElementById('editContent').value = ad.content || '';
+  document.getElementById('editImageUrl').value = ad.image_url || '';
+  document.getElementById('editButtonText').value = ad.button_text || '';
+  document.getElementById('editButtonUrl').value = ad.button_url || '';
+  document.getElementById('editFrequency').value = ad.show_frequency || 3;
+  document.getElementById('editIsActive').checked = !!ad.is_active;
+  document.getElementById('editForm').action = '/advertisements/' + id + '/edit';
+  document.getElementById('editModal').style.display = 'flex';
+}
+
+function closeEditModal() {
+  document.getElementById('editModal').style.display = 'none';
+}
+
+window.onclick = function(e) {
+  const m = document.getElementById('editModal');
+  if (e.target === m) closeEditModal();
+}
 </script>
+
+<!-- Edit Modal -->
+<div id="editModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center">
+  <div class="card" style="width:min(600px,95vw);max-height:90vh;overflow-y:auto;margin:0">
+    <div class="card-header">
+      <div class="card-title"><i class="fas fa-edit" style="color:var(--sky)"></i> Редагувати оголошення</div>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="closeEditModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <form id="editForm" method="POST">
+      <input type="hidden" id="editAdId" name="ad_id">
+      <div class="card-body" style="display:flex;flex-direction:column;gap:14px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <div class="form-group">
+            <label class="form-label">Назва</label>
+            <input type="text" id="editTitle" name="title" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Тип</label>
+            <select id="editType" name="type" class="form-control">
+              <option value="text">Текст</option>
+              <option value="image">Зображення</option>
+              <option value="button">З кнопкою</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Текст оголошення</label>
+          <textarea id="editContent" name="content" class="form-control" rows="3" required style="resize:vertical"></textarea>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+          <div class="form-group">
+            <label class="form-label">URL зображення</label>
+            <input type="url" id="editImageUrl" name="image_url" class="form-control">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Текст кнопки</label>
+            <input type="text" id="editButtonText" name="button_text" class="form-control">
+          </div>
+          <div class="form-group">
+            <label class="form-label">URL кнопки</label>
+            <input type="url" id="editButtonUrl" name="button_url" class="form-control">
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:center">
+          <div class="form-group">
+            <label class="form-label">Частота (кожні N дій)</label>
+            <input type="number" id="editFrequency" name="show_frequency" class="form-control" min="1" max="100">
+          </div>
+          <div class="toggle-wrap" style="padding-top:20px">
+            <div><div class="tg-label">Активне</div></div>
+            <label class="toggle">
+              <input type="checkbox" id="editIsActive" name="is_active">
+              <span class="toggle-track"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+      <div class="card-footer" style="display:flex;justify-content:flex-end;gap:8px">
+        <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Скасувати</button>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Зберегти</button>
+      </div>
+    </form>
+  </div>
+</div>
 {% endblock %}

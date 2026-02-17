@@ -38,8 +38,15 @@ except Exception:
 
 ADMIN_IDS = set()
 try:
-    _raw = os.getenv('ADMIN_IDS', '[]')
-    ADMIN_IDS = set(json.loads(_raw)) if _raw else set()
+    _raw = os.getenv('ADMIN_IDS', '')
+    if _raw:
+        # Support both "123,456" (Railway) and "[123,456]" (JSON array) formats
+        _raw = _raw.strip()
+        if _raw.startswith('['):
+            _parsed = json.loads(_raw)
+            ADMIN_IDS = set(int(x) for x in _parsed)
+        else:
+            ADMIN_IDS = set(int(x.strip()) for x in _raw.split(',') if x.strip().isdigit())
 except Exception:
     ADMIN_IDS = set()
 
@@ -88,6 +95,12 @@ MENU_BUTTONS = {
     "👨‍🌾 Фермер", "🧑‍💼 Покупець", "🚚 Логіст",
     "❌ Вийти з чату",
     "📋 Створити", "📂 Мої заявки", "💰 Біржові пропозиції", "⬅️ Головне меню",
+    # Кнопки підменю маркет
+    "📤 Продаю", "📥 Купую", "🔍 Всі лоти", "⭐ Обране", "➕ Новий лот",
+    # Кнопки підменю логістика
+    "🚛 Мій транспорт", "📋 Мої заявки на перевезення",
+    # Кнопки підменю чат/контакти
+    "📞 Поділитися контактом",
 }
 
 
@@ -585,47 +598,35 @@ async def edit_company_handler(message: Message, state: FSMContext):
 
 
 # ===================== SUBSCRIPTION =====================
+# ⭐ Підписка — повна логіка в subscriptions.py (підключено першим у диспетчері)
+# start.py НЕ має свого хендлера на "⭐ Підписка" — уникаємо конфлікту роутерів
 
-@router.message(F.text == "⭐ Підписка")
-async def subscription_menu(message: Message):
-    u = await get_user_row(message.from_user.id)
-    if not u:
-        await message.answer("Спочатку /start")
-        return
-    plan = u["subscription_plan"] or "free"
-    until = u["subscription_until"] or "—"
-    await message.answer(
-        "⭐ <b>Підписка</b>\n\n"
-        f"Поточний план: <b>{plan.upper()}</b>\n"
-        f"Активно до: <b>{until}</b>\n\n"
-        "💎 PRO дає:\n"
-        "• Необмежена кількість лотів\n"
-        "• Пріоритет у зустрічних пропозиціях\n"
-        "• Розширена аналітика\n",
-        reply_markup=kb_subscription()
-    )
-
-
+# 💎 Купити PRO — перенаправляємо на повний модуль підписок
 @router.message(F.text == "💎 Купити PRO")
 async def buy_pro(message: Message):
+    from src.bot.handlers.subscriptions import get_plans_keyboard
     await message.answer(
-        "💎 <b>Купівля PRO</b>\n\n"
-        "✅ Для оформлення підписки зверніться до підтримки:\n"
-        "Telegram: @agro_support\n\n"
-        "💰 Ціна: 199 грн/міс\n\n"
-        "Після оплати підписка активується автоматично!",
-        reply_markup=kb_subscription()
+        "💎 <b>Придбати підписку</b>\n\n"
+        "Оберіть план:",
+        reply_markup=get_plans_keyboard()
     )
 
 
 @router.message(F.text == "📅 Мій статус")
 async def my_status(message: Message):
+    from src.bot.handlers.subscriptions import get_user_subscription, SUBSCRIPTION_PLANS, get_subscription_menu_kb
     u = await get_user_row(message.from_user.id)
-    plan = u["subscription_plan"] or "free"
-    until = u["subscription_until"] or "—"
+    if not u:
+        await message.answer("👋 Спочатку пройдіть реєстрацію. Натисніть /start")
+        return
+    subscription = await get_user_subscription(message.from_user.id)
+    plan_key = subscription["plan"] if subscription else "free"
+    plan = SUBSCRIPTION_PLANS.get(plan_key, SUBSCRIPTION_PLANS["free"])
+    expires = subscription.get("expires_at") or "—" if subscription else "—"
     await message.answer(
-        f"📅 <b>Ваш статус</b>\n\nПлан: <b>{plan.upper()}</b>\nАктивно до: <b>{until}</b>",
-        reply_markup=kb_subscription()
+        f"{plan['emoji']} <b>Ваш статус: {plan['name']}</b>\n\n"
+        f"Активно до: <b>{expires}</b>",
+        reply_markup=get_subscription_menu_kb()
     )
 
 
@@ -659,6 +660,9 @@ async def support(message: Message):
 @router.message(F.text == "🔁 Зустрічні")
 async def counteroffers(message: Message):
     u = await get_user_row(message.from_user.id)
+    if not u or u["role"] in ("guest", None):
+        await message.answer("👋 Спочатку пройдіть реєстрацію. Натисніть /start")
+        return
     user_id = u["id"]
     async with aiosqlite.connect(DB_FILE) as db:
         db.row_factory = aiosqlite.Row

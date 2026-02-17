@@ -82,14 +82,25 @@ async def main():
     except Exception as e:
         logger.warning(f"⚠️  Не вдалося підключити BanCheckMiddleware: {e}")
 
+    # Підключення middleware для реклами
+    try:
+        from src.bot.middlewares.advertisement import AdvertisementMiddleware
+        ad_middleware = AdvertisementMiddleware(str(DB_PATH))
+        dp.message.middleware(ad_middleware)
+        dp.callback_query.middleware(ad_middleware)
+        logger.info("✅ AdvertisementMiddleware підключено")
+    except Exception as e:
+        logger.warning(f"⚠️  Не вдалося підключити AdvertisementMiddleware: {e}")
+
     # Підключення роутерів
     try:
         from src.bot.handlers import (
-            start, registration, market, chat, 
-            logistics, admin_tools, subscriptions, 
-            offers_handlers, calculators
+            start, registration, market, chat,
+            logistics, admin_tools, subscriptions,
+            offers_handlers, calculators, advertisement_handler
         )
-        
+
+        dp.include_router(subscriptions.router)   # ⭐ Підписка — ПЕРШИМ, щоб не перехоплював start
         dp.include_router(start.router)
         dp.include_router(registration.router)
         dp.include_router(calculators.router)
@@ -97,8 +108,8 @@ async def main():
         dp.include_router(offers_handlers.router)
         dp.include_router(chat.router)
         dp.include_router(logistics.router)
-        dp.include_router(subscriptions.router)
         dp.include_router(admin_tools.router)
+        dp.include_router(advertisement_handler.router)
         
         logger.info("✅ Всі роутери підключено")
     except Exception as e:

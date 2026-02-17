@@ -97,9 +97,27 @@
           </button>
         </form>
         {% endif %}
+        <div class="divider" style="margin:4px 0"></div>
+        <form method="POST" action="/users/{{ user['id'] }}/set_subscription">
+          <div style="display:flex;gap:6px">
+            <select name="plan" class="form-control" style="flex:1;padding:6px 10px;font-size:13px">
+              <option value="free" {% if (user['subscription_plan'] or 'free') == 'free' %}selected{% endif %}>📦 Free</option>
+              <option value="basic" {% if user['subscription_plan'] == 'basic' %}selected{% endif %}>⭐ Basic</option>
+              <option value="premium" {% if user['subscription_plan'] == 'premium' %}selected{% endif %}>💎 Premium</option>
+              <option value="business" {% if user['subscription_plan'] == 'business' %}selected{% endif %}>👑 Business</option>
+            </select>
+            <button type="submit" class="btn btn-primary btn-sm" title="Встановити підписку">
+              <i class="fas fa-check"></i>
+            </button>
+          </div>
+        </form>
         {% if user['username'] %}
         <a href="https://t.me/{{ user['username'] }}" target="_blank" class="btn btn-secondary" style="width:100%;justify-content:center">
           <i class="fab fa-telegram"></i> Відкрити в Telegram
+        </a>
+        {% elif user['tg_id'] or user['telegram_id'] %}
+        <a href="tg://user?id={{ user['tg_id'] or user['telegram_id'] }}" target="_blank" class="btn btn-secondary" style="width:100%;justify-content:center">
+          <i class="fab fa-telegram"></i> Написати в Telegram
         </a>
         {% endif %}
         <a href="/users" class="btn btn-secondary" style="width:100%;justify-content:center">

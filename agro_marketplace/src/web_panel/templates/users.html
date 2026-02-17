@@ -64,6 +64,8 @@
           <td>
             {% if row['username'] %}
             <a href="https://t.me/{{ row['username'] }}" target="_blank" style="color:var(--sky);font-size:13px">@{{ row['username'] }} <i class="fas fa-external-link-alt" style="font-size:10px"></i></a>
+            {% elif row['tg_id'] or row['telegram_id'] %}
+            <a href="tg://user?id={{ row['tg_id'] or row['telegram_id'] }}" target="_blank" style="color:var(--sky);font-size:13px"><i class="fab fa-telegram" style="font-size:10px"></i> ID:{{ row['tg_id'] or row['telegram_id'] }}</a>
             {% else %}<span class="text-muted">—</span>{% endif %}
           </td>
           <td>

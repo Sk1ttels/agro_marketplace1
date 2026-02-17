@@ -22,7 +22,13 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 
 
 router = Router()
-DB_FILE = "agro_bot.db"
+
+try:
+    from config.settings import DB_PATH as _DB_PATH
+    DB_FILE = str(_DB_PATH)
+except Exception:
+    import os
+    DB_FILE = os.getenv("DB_FILE", "data/agro_bot.db")
 
 # --- Довідник областей (шаблон) ---
 OBLASTS = [
@@ -153,7 +159,7 @@ async def _ensure_chat_tables():
                                                          id INTEGER PRIMARY KEY AUTOINCREMENT,
                                                          session_id INTEGER NOT NULL,
                                                          sender_user_id INTEGER NOT NULL,
-                                                         message_type TEXT NOT NULL,
+                                                         message_type TEXT,
                                                          content TEXT NOT NULL,
                                                          created_at TEXT DEFAULT CURRENT_TIMESTAMP
             )
@@ -666,7 +672,7 @@ async def _get_main_menu_kb(telegram_id: int):
         from src.bot.keyboards.main import main_menu
         import os
         raw = os.getenv("ADMIN_IDS", "")
-        is_adm = str(telegram_id) in raw
+        is_adm = str(telegram_id) in raw.split(',')
         return main_menu(is_admin=is_adm)
     except Exception:
         from aiogram.utils.keyboard import ReplyKeyboardBuilder

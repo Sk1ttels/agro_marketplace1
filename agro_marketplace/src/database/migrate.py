@@ -55,11 +55,17 @@ LOTS_COLUMNS: List[Tuple[str, str]] = [
     ("owner_user_id", "INTEGER NOT NULL"),
     ("type", "TEXT NOT NULL"),
     ("crop", "TEXT NOT NULL"),
-    ("volume", "REAL NOT NULL"),
+    ("volume", "REAL"),
+    ("volume_tons", "REAL NOT NULL DEFAULT 0"),
     ("price", "REAL"),
     ("region", "TEXT NOT NULL"),
+    ("location", "TEXT"),
+    ("comment", "TEXT"),
+    ("quality_json", "TEXT NOT NULL DEFAULT '{}'"),
+    ("views_count", "INTEGER NOT NULL DEFAULT 0"),
     ("status", "TEXT DEFAULT 'active'"),
     ("created_at", "TEXT DEFAULT CURRENT_TIMESTAMP"),
+    ("updated_at", "TEXT"),
 ]
 
 SETTINGS_COLUMNS: List[Tuple[str, str]] = [
@@ -203,6 +209,159 @@ def migrate(db_path: str, verbose: bool = True) -> None:
         if verbose:
             print("\n📋 Таблиця settings:")
         _ensure_table(cur, "settings", SETTINGS_COLUMNS)
+
+        # Таблиця user_subscriptions
+        if verbose:
+            print("\n📋 Таблиця user_subscriptions:")
+        _ensure_table(cur, "user_subscriptions", [
+            ("id", "INTEGER PRIMARY KEY AUTOINCREMENT"),
+            ("user_id", "INTEGER NOT NULL"),
+            ("plan", "TEXT NOT NULL DEFAULT 'free'"),
+            ("started_at", "TEXT DEFAULT CURRENT_TIMESTAMP"),
+            ("expires_at", "TEXT"),
+            ("is_active", "INTEGER DEFAULT 1"),
+            ("payment_id", "TEXT"),
+        ])
+
+        # Таблиця vehicles
+        if verbose:
+            print("\n📋 Таблиця vehicles:")
+        _ensure_table(cur, "vehicles", [
+            ("id", "INTEGER PRIMARY KEY AUTOINCREMENT"),
+            ("owner_user_id", "INTEGER NOT NULL"),
+            ("body_type", "TEXT NOT NULL"),
+            ("capacity_tons", "REAL NOT NULL"),
+            ("count_units", "INTEGER NOT NULL DEFAULT 1"),
+            ("base_region", "TEXT NOT NULL"),
+            ("work_regions", "TEXT"),
+            ("status", "TEXT NOT NULL DEFAULT 'available'"),
+            ("available_from", "TEXT"),
+            ("comment", "TEXT"),
+            ("created_at", "TEXT DEFAULT CURRENT_TIMESTAMP"),
+            ("updated_at", "TEXT"),
+        ])
+
+        # Таблиця shipments
+        if verbose:
+            print("\n📋 Таблиця shipments:")
+        _ensure_table(cur, "shipments", [
+            ("id", "INTEGER PRIMARY KEY AUTOINCREMENT"),
+            ("creator_user_id", "INTEGER NOT NULL"),
+            ("cargo_type", "TEXT NOT NULL"),
+            ("volume_tons", "REAL NOT NULL"),
+            ("from_region", "TEXT NOT NULL"),
+            ("from_location", "TEXT"),
+            ("to_region", "TEXT NOT NULL"),
+            ("to_location", "TEXT"),
+            ("date_from", "TEXT"),
+            ("date_to", "TEXT"),
+            ("required_body_types", "TEXT"),
+            ("comment", "TEXT"),
+            ("status", "TEXT NOT NULL DEFAULT 'active'"),
+            ("created_at", "TEXT DEFAULT CURRENT_TIMESTAMP"),
+            ("updated_at", "TEXT"),
+        ])
+
+        # Таблиця chat_sessions
+        if verbose:
+            print("\n📋 Таблиця chat_sessions:")
+        _ensure_table(cur, "chat_sessions", [
+            ("id", "INTEGER PRIMARY KEY AUTOINCREMENT"),
+            ("user1_id", "INTEGER NOT NULL"),
+            ("user2_id", "INTEGER NOT NULL"),
+            ("lot_id", "INTEGER"),
+            ("offer_id", "INTEGER"),
+            ("status", "TEXT NOT NULL DEFAULT 'active'"),
+            ("created_at", "TEXT DEFAULT CURRENT_TIMESTAMP"),
+            ("updated_at", "TEXT DEFAULT CURRENT_TIMESTAMP"),
+        ])
+
+        # Таблиця chat_messages
+        if verbose:
+            print("\n📋 Таблиця chat_messages:")
+        _ensure_table(cur, "chat_messages", [
+            ("id", "INTEGER PRIMARY KEY AUTOINCREMENT"),
+            ("session_id", "INTEGER NOT NULL"),
+            ("sender_user_id", "INTEGER NOT NULL"),
+            ("content", "TEXT NOT NULL"),
+            ("created_at", "TEXT DEFAULT CURRENT_TIMESTAMP"),
+        ])
+
+        # Таблиця contacts (з UNIQUE для INSERT OR IGNORE/REPLACE)
+        if verbose:
+            print("\n📋 Таблиця contacts:")
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS contacts (
+                id               INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id          INTEGER NOT NULL,
+                contact_user_id  INTEGER NOT NULL,
+                status           TEXT NOT NULL DEFAULT 'pending',
+                created_at       TEXT DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(user_id, contact_user_id)
+            )
+        """)
+
+        # Таблиця counter_offers
+        if verbose:
+            print("\n📋 Таблиця counter_offers:")
+        _ensure_table(cur, "counter_offers", [
+            ("id", "INTEGER PRIMARY KEY AUTOINCREMENT"),
+            ("lot_id", "INTEGER NOT NULL"),
+            ("sender_user_id", "INTEGER NOT NULL"),
+            ("offered_price", "REAL NOT NULL"),
+            ("message", "TEXT"),
+            ("status", "TEXT NOT NULL DEFAULT 'pending'"),
+            ("created_at", "TEXT DEFAULT (datetime('now'))"),
+        ])
+
+        # Таблиця payments
+        if verbose:
+            print("\n📋 Таблиця payments:")
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS payments (
+                id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id            INTEGER NOT NULL,
+                plan               TEXT,
+                amount             INTEGER NOT NULL DEFAULT 0,
+                currency           TEXT DEFAULT 'UAH',
+                status             TEXT DEFAULT 'pending',
+                provider           TEXT DEFAULT 'manual',
+                provider_payment_id TEXT,
+                payment_method     TEXT,
+                created_at         TEXT DEFAULT CURRENT_TIMESTAMP,
+                paid_at            TEXT
+            )
+        """)
+
+        # Таблиця advertisements
+        if verbose:
+            print("\n📋 Таблиця advertisements:")
+        _ensure_table(cur, "advertisements", [
+            ("id", "INTEGER PRIMARY KEY AUTOINCREMENT"),
+            ("title", "TEXT NOT NULL"),
+            ("type", "TEXT NOT NULL"),
+            ("content", "TEXT NOT NULL"),
+            ("image_url", "TEXT"),
+            ("button_text", "TEXT"),
+            ("button_url", "TEXT"),
+            ("is_active", "INTEGER DEFAULT 1"),
+            ("show_frequency", "INTEGER DEFAULT 3"),
+            ("views_count", "INTEGER DEFAULT 0"),
+            ("clicks_count", "INTEGER DEFAULT 0"),
+            ("created_at", "TEXT DEFAULT CURRENT_TIMESTAMP"),
+            ("updated_at", "TEXT DEFAULT CURRENT_TIMESTAMP"),
+        ])
+
+        # Таблиця advertisement_views
+        if verbose:
+            print("\n📋 Таблиця advertisement_views:")
+        _ensure_table(cur, "advertisement_views", [
+            ("id", "INTEGER PRIMARY KEY AUTOINCREMENT"),
+            ("ad_id", "INTEGER NOT NULL"),
+            ("user_id", "INTEGER NOT NULL"),
+            ("viewed_at", "TEXT DEFAULT CURRENT_TIMESTAMP"),
+            ("clicked", "INTEGER DEFAULT 0"),
+        ])
 
 
         # Індекси для швидкої роботи (бот менше гальмує)

@@ -7,11 +7,18 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from src.bot.keyboards.main import main_menu
 import aiosqlite
+import os
 from datetime import datetime, timedelta
 import json
 
 router = Router()
-DB_FILE = "agro_bot.db"
+
+try:
+    from config.settings import DB_PATH as _DB_PATH
+    DB_FILE = str(_DB_PATH)
+except Exception:
+    import os
+    DB_FILE = os.getenv("DB_FILE", "data/agro_bot.db")
 
 # Плани підписок (синхронізовано з веб-панеллю)
 SUBSCRIPTION_PLANS = {
@@ -79,10 +86,43 @@ class SubscriptionState(StatesGroup):
     choosing_plan = State()
     confirming_payment = State()
 
+
+async def _ensure_subscription_table():
+    """Ensure user_subscriptions and payments tables exist."""
+    async with aiosqlite.connect(DB_FILE) as db:
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS user_subscriptions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                plan TEXT NOT NULL DEFAULT 'free',
+                started_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                expires_at TEXT,
+                is_active INTEGER DEFAULT 1,
+                payment_id TEXT
+            )
+        """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS payments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                plan TEXT,
+                amount INTEGER NOT NULL DEFAULT 0,
+                currency TEXT DEFAULT 'UAH',
+                status TEXT DEFAULT 'pending',
+                provider TEXT DEFAULT 'manual',
+                provider_payment_id TEXT,
+                payment_method TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                paid_at TEXT
+            )
+        """)
+        await db.commit()
+
 # ==================== HELPERS ====================
 
 async def get_user_subscription(telegram_id: int):
     """Отримати підписку користувача"""
+    await _ensure_subscription_table()
     async with aiosqlite.connect(DB_FILE) as db:
         # Спочатку отримуємо user_id
         user = await db.execute(
@@ -361,6 +401,7 @@ async def process_payment(call: CallbackQuery):
     await call.answer()
 
     # Створюємо запис про платіж
+    await _ensure_subscription_table()
     async with aiosqlite.connect(DB_FILE) as db:
         user = await db.execute(
             'SELECT id FROM users WHERE telegram_id = ?',

@@ -22,7 +22,7 @@ from aiogram.client.default import DefaultBotProperties
 from config.settings import BOT_TOKEN, ADMIN_IDS, DB_FILE
 
 # Імпорт handlers
-from bot.handlers import start, registration, market, chat, logistics, admin_tools, subscriptions, offers_handlers, calculators
+from bot.handlers import start, registration, market, chat, logistics, admin_tools, subscriptions, offers_handlers, calculators, advertisement_handler
 
 # Налаштування логування
 logging.basicConfig(
@@ -67,6 +67,7 @@ async def main():
     dp = Dispatcher()
 
     # Підключення роутерів
+    dp.include_router(subscriptions.router)   # ⭐ Підписка — ПЕРШИМ
     dp.include_router(start.router)
     dp.include_router(registration.router)
     dp.include_router(calculators.router)
@@ -74,8 +75,8 @@ async def main():
     dp.include_router(offers_handlers.router)
     dp.include_router(chat.router)
     dp.include_router(logistics.router)
-    dp.include_router(subscriptions.router)
     dp.include_router(admin_tools.router)
+    dp.include_router(advertisement_handler.router)
 
     logger.info("🌾 Agro Marketplace Bot запущено!")
     logger.info(f"📋 Адміністратори: {ADMIN_IDS}")

@@ -165,6 +165,11 @@ async def main():
     # Ініціалізація диспетчера
     dp = Dispatcher()
 
+    # Реєстрація middleware
+    dp.message.middleware(BanCheckMiddleware())
+    dp.callback_query.middleware(BanCheckMiddleware())
+    dp.message.middleware(AdvertisementMiddleware(DB_FILE))
+
     # Ініціалізація sync processor
     sync_processor = SyncEventProcessor(bot)
 

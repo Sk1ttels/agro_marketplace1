@@ -258,6 +258,31 @@ def create_app() -> Flask:
             conn.close()
         return render_template("user_detail.html", user=user, lots=lots)
 
+    @app.post("/users/<int:user_id>/set_subscription")
+    @login_required
+    def user_set_subscription(user_id: int):
+        plan = request.form.get("plan", "free")
+        if plan not in ("free", "basic", "premium", "business"):
+            flash("Невірний план", "danger")
+            return redirect(url_for("user_detail", user_id=user_id))
+        conn = get_conn()
+        try:
+            cols = _table_cols(conn, "users")
+            if "subscription_plan" in cols:
+                conn.execute(
+                    "UPDATE users SET subscription_plan=? WHERE id=?",
+                    (plan, user_id)
+                )
+                conn.commit()
+                flash(f"✅ Підписку змінено на '{plan}'", "success")
+            else:
+                flash("Колонка subscription_plan відсутня в БД", "warning")
+        except Exception as e:
+            flash(f"Помилка: {e}", "danger")
+        finally:
+            conn.close()
+        return redirect(url_for("user_detail", user_id=user_id))
+
     @app.post("/users/<int:user_id>/ban")
     @login_required
     def user_ban(user_id: int):
@@ -559,6 +584,41 @@ def create_app() -> Flask:
             conn.close()
         return redirect(url_for("advertisements_page"))
 
+    @app.post("/advertisements/<int:ad_id>/edit")
+    @login_required
+    def edit_advertisement(ad_id: int):
+        title          = request.form.get("title", "").strip()
+        ad_type        = request.form.get("type", "text")
+        content        = request.form.get("content", "").strip()
+        image_url      = request.form.get("image_url", "").strip()
+        button_text    = request.form.get("button_text", "").strip()
+        button_url     = request.form.get("button_url", "").strip()
+        show_frequency = int(request.form.get("show_frequency", 3))
+        is_active      = 1 if request.form.get("is_active") else 0
+
+        if not title or not content:
+            flash("Назва та текст обов'язкові!", "danger")
+            return redirect(url_for("advertisements_page"))
+
+        conn = get_conn()
+        try:
+            conn.execute("""
+                UPDATE advertisements
+                SET title=?, type=?, content=?, image_url=?, button_text=?, button_url=?,
+                    show_frequency=?, is_active=?, updated_at=CURRENT_TIMESTAMP
+                WHERE id=?
+            """, (title, ad_type, content, image_url, button_text, button_url,
+                  show_frequency, is_active, ad_id))
+            conn.commit()
+            flash("✅ Оголошення оновлено!", "success")
+        except Exception as e:
+            logger.error("Error editing ad: %s", e)
+            flash(f"Помилка: {e}", "danger")
+            conn.rollback()
+        finally:
+            conn.close()
+        return redirect(url_for("advertisements_page"))
+
     @app.post("/advertisements/<int:ad_id>/toggle")
     @login_required
     def toggle_advertisement(ad_id: int):
@@ -593,6 +653,22 @@ def create_app() -> Flask:
         finally:
             conn.close()
         return redirect(url_for("advertisements_page"))
+
+    @app.post("/sync/clear")
+    @login_required
+    def sync_clear():
+        try:
+            FileBasedSync.write_event("__clear__", {})
+            # Очищаємо файл подій
+            import json
+            from pathlib import Path
+            events_file = Path("sync_events.json")
+            if events_file.exists():
+                events_file.write_text("[]", encoding="utf-8")
+            flash("✅ Список подій очищено", "success")
+        except Exception as e:
+            flash(f"Помилка: {e}", "danger")
+        return redirect(url_for("sync_page"))
 
     # -------- Синхронізація (моніторинг) --------
     @app.get("/sync")
