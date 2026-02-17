@@ -38,3 +38,18 @@ If you want Railway to run **both** the Flask site and Telegram bot in one conta
 
 This mode is simpler to deploy, but if one process crashes the whole service restarts.
 - `run_unified.py` запускає web через `wsgi:app` і бота через `run_bot.py`, тож працюють всі основні middleware/handlers.
+
+
+## Merge-conflict resolution defaults (important)
+
+If GitHub shows conflicts in `wsgi.py`, `Procfile`, or `railway.json`, keep these values:
+
+- `wsgi.py`:
+  - import full app: `from src.web_panel.app import create_app`
+  - default WSGI bot autostart disabled (`return False`), and enable only explicitly with `ENABLE_WSGI_BOT_AUTOSTART=1`.
+- `Procfile`:
+  - `web: ENABLE_WSGI_BOT_AUTOSTART=0 . /opt/venv/bin/activate && python run_unified.py`
+- `railway.json`:
+  - `"startCommand": "ENABLE_WSGI_BOT_AUTOSTART=0 . /opt/venv/bin/activate && python run_unified.py"`
+
+This combination prevents duplicate Telegram polling instances (`TelegramConflictError`) and keeps web routes (`/contacts`, `/advertisements`) served by the full panel app.
