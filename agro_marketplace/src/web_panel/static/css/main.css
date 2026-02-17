@@ -846,6 +846,25 @@ body {
   }
 }
 
+
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mobile-sidebar-toggle {
+  display: none;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 8px;
+  background: var(--gray-100);
+  color: var(--gray-700);
+  align-items: center;
+  justify-content: center;
+}
+
 /* ==================== 
    DASHBOARD - STATS GRID
    ==================== */
@@ -1863,6 +1882,10 @@ input:checked + .toggle-slider:before {
    ==================== */
 
 @media (max-width: 1024px) {
+  .mobile-sidebar-toggle {
+    display: inline-flex;
+  }
+
   .sidebar {
     transform: translateX(-100%);
   }
