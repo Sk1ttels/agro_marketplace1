@@ -173,9 +173,8 @@ async def main():
     # Ініціалізація sync processor
     sync_processor = SyncEventProcessor(bot)
 
-    # Підключення роутерів
-    dp.include_router(subscriptions.router)       # ⭐ Підписка — ПЕРШИМ (уникаємо конфлікту з start)
-    dp.include_router(start.router)
+    # Підключення роутерів (порядок важливий! start — останній, бо містить catch-all)
+    dp.include_router(subscriptions.router)
     dp.include_router(registration.router)
     dp.include_router(calculators.router)
     dp.include_router(market.router)
@@ -184,6 +183,7 @@ async def main():
     dp.include_router(logistics.router)
     dp.include_router(admin_tools.router)
     dp.include_router(advertisement_handler.router)
+    dp.include_router(start.router)       # ← ОСТАННІЙ (catch-all всередині)
 
     logger.info("🌾 Agro Marketplace Bot запущено!")
     logger.info(f"📋 Адміністратори: {ADMIN_IDS}")
