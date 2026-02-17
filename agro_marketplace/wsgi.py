@@ -34,8 +34,9 @@ def _autostart_enabled() -> bool:
     if flag is not None:
         return flag.lower() in {"1", "true", "yes", "on"}
 
-    # Default: enabled on Railway only; disabled for local/dev by default.
-    return bool(os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("RAILWAY_PROJECT_ID"))
+    # Default: disabled to avoid accidental duplicate polling bots.
+    # Enable explicitly with ENABLE_WSGI_BOT_AUTOSTART=1 when needed.
+    return False
 
 
 def _acquire_lock() -> bool:
