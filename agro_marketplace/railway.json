@@ -5,6 +5,6 @@
     "nixpacksConfigPath": "nixpacks.toml"
   },
   "deploy": {
-    "startCommand": "gunicorn -w 2 -b 0.0.0.0:$PORT wsgi:app"
+    "startCommand": "ENABLE_WSGI_BOT_AUTOSTART=0 . /opt/venv/bin/activate && python run_unified.py"
   }
 }
