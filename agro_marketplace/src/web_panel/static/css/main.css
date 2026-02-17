@@ -649,6 +649,11 @@ body {
   position: absolute;
   inset: 0;
   z-index: 0;
+  pointer-events: none;
+}
+
+.login-background * {
+  pointer-events: none;
 }
 
 .bg-shape {
@@ -705,6 +710,8 @@ body {
 }
 
 .login-card {
+  position: relative;
+  z-index: 1;
   background: var(--white);
   border-radius: 24px;
   padding: 48px 40px;
@@ -761,6 +768,8 @@ body {
 }
 
 .login-form {
+  position: relative;
+  z-index: 2;
   margin-bottom: 24px;
 }
 
@@ -795,6 +804,7 @@ body {
 
 .password-input-wrapper {
   position: relative;
+  z-index: 2;
 }
 
 .password-toggle {
@@ -832,6 +842,13 @@ body {
   justify-content: center;
   gap: 8px;
   margin: 0;
+}
+
+
+@media (max-width: 768px) {
+  .login-background {
+    display: none;
+  }
 }
 
 /* ==================== 
