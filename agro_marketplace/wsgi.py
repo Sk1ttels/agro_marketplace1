@@ -10,6 +10,11 @@ from pathlib import Path
 import fcntl
 
 from src.web_panel.app import create_app
+from src.web_panel.app import create_app
+from src.web_panel.app import create_app
+
+from src.web_panel.app_sync import create_app
+
 
 app = create_app()
 
@@ -33,11 +38,6 @@ def _autostart_enabled() -> bool:
     flag = os.getenv("ENABLE_WSGI_BOT_AUTOSTART")
     if flag is not None:
         return flag.lower() in {"1", "true", "yes", "on"}
-
-    # Default: disabled to avoid accidental duplicate polling bots.
-    # Enable explicitly with ENABLE_WSGI_BOT_AUTOSTART=1 when needed.
-    return False
-
 
 def _acquire_lock() -> bool:
     global _LOCK_FD
