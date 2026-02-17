@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css', v='20260217g') }}">
 </head>
 <body>
 
@@ -28,7 +28,7 @@
             <div class="logo-subtitle">Admin Panel</div>
           </div>
         </div>
-        <button class="sidebar-toggle" id="sidebarToggle">
+        <button class="sidebar-toggle js-sidebar-toggle" id="sidebarToggle">
           <i class="fas fa-bars"></i>
         </button>
       </div>
@@ -107,8 +107,13 @@
       <!-- Top Bar -->
       <header class="topbar">
         <div class="topbar-left">
-          <h1 class="page-title">{% block page_title %}{% endblock %}</h1>
-          <p class="page-description">{% block page_description %}{% endblock %}</p>
+          <button class="mobile-sidebar-toggle js-sidebar-toggle" type="button" aria-label="Відкрити меню">
+            <i class="fas fa-bars"></i>
+          </button>
+          <div class="topbar-titles">
+            <h1 class="page-title">{% block page_title %}{% endblock %}</h1>
+            <p class="page-description">{% block page_description %}{% endblock %}</p>
+          </div>
         </div>
         <div class="topbar-right">
           <div class="topbar-actions">
@@ -153,7 +158,8 @@
     </div>
   {% endif %}
 
-  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  {% if current_user.is_authenticated %}
+  <script src="{{ url_for('static', filename='js/main.js', v='20260217g') }}"></script>
   <script>
     // Check sync status periodically
     function checkSyncStatus() {
@@ -190,7 +196,8 @@
       setInterval(checkSyncStatus, 10000);
     }
   </script>
-  
+  {% endif %}
+
   <style>
     .status-dot {
       width: 8px;
