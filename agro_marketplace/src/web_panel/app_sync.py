@@ -53,6 +53,19 @@ def create_app() -> Flask:
     # Ensure required tables exist (settings/web_admins)
     init_schema()
 
+    @app.context_processor
+    def inject_dashboard_defaults():
+        """Default context to prevent template crashes when route misses dashboard data."""
+        return {
+            "stats": {"users": 0, "lots": 0, "active_lots": 0, "banned": 0},
+            "weekly_data": {
+                "labels": ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Нд"],
+                "new_users": [0, 0, 0, 0, 0, 0, 0],
+                "new_lots": [0, 0, 0, 0, 0, 0, 0],
+            },
+            "recent_lots": [],
+        }
+
     @app.get("/")
     def root():
         return redirect(url_for("dashboard"))
@@ -83,31 +96,57 @@ def create_app() -> Flask:
     @login_required
     def dashboard():
         conn = get_conn()
-        users = conn.execute("SELECT COUNT(*) AS c FROM users").fetchone()["c"] if _has_table(conn, "users") else 0
-        lots = conn.execute("SELECT COUNT(*) AS c FROM lots").fetchone()["c"] if _has_table(conn, "lots") else 0
-        banned = (
-            conn.execute("SELECT COUNT(*) AS c FROM users WHERE is_banned=1").fetchone()["c"]
-            if _has_table(conn, "users") and _has_col(conn, "users", "is_banned")
-            else 0
-        )
-        
-        # Get recent activity stats
-        active_lots = conn.execute(
-            "SELECT COUNT(*) AS c FROM lots WHERE status='active'"
-        ).fetchone()["c"] if _has_table(conn, "lots") else 0
-        
-        total_offers = conn.execute(
-            "SELECT COUNT(*) AS c FROM offers"
-        ).fetchone()["c"] if _has_table(conn, "offers") else 0
-        
+        stats = {
+            "users": 0,
+            "lots": 0,
+            "banned": 0,
+            "active_lots": 0,
+        }
+
+        if _has_table(conn, "users"):
+            try:
+                stats["users"] = conn.execute("SELECT COUNT(*) AS c FROM users").fetchone()["c"]
+                if _has_col(conn, "users", "is_banned"):
+                    stats["banned"] = conn.execute("SELECT COUNT(*) AS c FROM users WHERE is_banned=1").fetchone()["c"]
+            except Exception:
+                pass
+
+        if _has_table(conn, "lots"):
+            try:
+                stats["lots"] = conn.execute("SELECT COUNT(*) AS c FROM lots").fetchone()["c"]
+                cols = _table_cols(conn, "lots")
+                if "status" in cols:
+                    stats["active_lots"] = conn.execute(
+                        "SELECT COUNT(*) AS c FROM lots WHERE status IN ('active', 'open', 'published')"
+                    ).fetchone()["c"]
+                elif "is_active" in cols:
+                    stats["active_lots"] = conn.execute("SELECT COUNT(*) AS c FROM lots WHERE is_active=1").fetchone()["c"]
+                elif "is_closed" in cols:
+                    stats["active_lots"] = conn.execute("SELECT COUNT(*) AS c FROM lots WHERE is_closed=0").fetchone()["c"]
+            except Exception:
+                pass
+
+        weekly_data = {
+            "labels": ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Нд"],
+            "new_users": [0, 0, 0, 0, 0, 0, 0],
+            "new_lots": [0, 0, 0, 0, 0, 0, 0],
+        }
+
+        recent_lots = []
+        if _has_table(conn, "lots"):
+            try:
+                cols = _table_cols(conn, "lots")
+                order_by = "id DESC" if "id" in cols else "rowid DESC"
+                recent_lots = conn.execute(f"SELECT * FROM lots ORDER BY {order_by} LIMIT 4").fetchall()
+            except Exception:
+                recent_lots = []
+
         conn.close()
         return render_template(
             "dashboard.html", 
-            users=users, 
-            lots=lots, 
-            banned=banned,
-            active_lots=active_lots,
-            total_offers=total_offers
+            stats=stats,
+            weekly_data=weekly_data,
+            recent_lots=recent_lots,
         )
 
     # -------- Users --------
