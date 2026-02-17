@@ -16,16 +16,24 @@ document.addEventListener('DOMContentLoaded', function() {
 // ==================== 
 
 function initSidebar() {
-    const sidebarToggle = document.getElementById('sidebarToggle');
+    const sidebarToggles = document.querySelectorAll('.js-sidebar-toggle');
     const sidebar = document.getElementById('sidebar');
-    const mainContent = document.getElementById('mainContent');
 
-    if (sidebarToggle) {
-        sidebarToggle.addEventListener('click', function() {
-            sidebar.classList.toggle('collapsed');
-            mainContent.classList.toggle('expanded');
-        });
+    if (!sidebar) {
+        return;
     }
+
+    const isMobile = () => window.matchMedia('(max-width: 1024px)').matches;
+
+    sidebarToggles.forEach(toggle => {
+        toggle.addEventListener('click', function() {
+            if (isMobile()) {
+                sidebar.classList.toggle('active');
+            } else {
+                sidebar.classList.toggle('collapsed');
+            }
+        });
+    });
 
     // Active nav item animation
     const navItems = document.querySelectorAll('.nav-item');
@@ -33,7 +41,18 @@ function initSidebar() {
         item.addEventListener('click', function() {
             navItems.forEach(nav => nav.classList.remove('active'));
             this.classList.add('active');
+
+            // Auto-close off-canvas menu after tap on mobile.
+            if (isMobile()) {
+                sidebar.classList.remove('active');
+            }
         });
+    });
+
+    window.addEventListener('resize', function() {
+        if (!isMobile()) {
+            sidebar.classList.remove('active');
+        }
     });
 }
 
