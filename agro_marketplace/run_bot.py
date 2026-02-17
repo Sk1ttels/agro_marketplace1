@@ -64,8 +64,6 @@ async def _acquire_bot_lock(owner: str | None = None) -> bool:
     now = datetime.utcnow()
 
     async with aiosqlite.connect(DB_FILE) as db:
-        # Ensure competing processes cannot read/update the lock row concurrently.
-        await db.execute("BEGIN IMMEDIATE")
         await db.execute(
             """
             CREATE TABLE IF NOT EXISTS bot_runtime_locks (
@@ -89,14 +87,7 @@ async def _acquire_bot_lock(owner: str | None = None) -> bool:
             except Exception:
                 lock_time = now - timedelta(seconds=_LOCK_TTL_SECONDS + 1)
 
-            lock_age = (now - lock_time).total_seconds()
-            if lock_owner != owner and lock_age < _LOCK_TTL_SECONDS:
-                logger.warning(
-                    "⚠️ Блокування polling вже зайнято іншим інстансом (owner=%s, age=%.1fs)",
-                    lock_owner,
-                    lock_age,
-                )
-                await db.rollback()
+            if lock_owner != owner and (now - lock_time).total_seconds() < _LOCK_TTL_SECONDS:
                 return False
 
         await db.execute(
@@ -179,6 +170,7 @@ async def main():
     sync_processor = SyncEventProcessor(bot)
 
     # Підключення роутерів
+    dp.include_router(start.router)
     dp.include_router(registration.router)
     dp.include_router(calculators.router)
     dp.include_router(market.router)
@@ -188,7 +180,6 @@ async def main():
     dp.include_router(subscriptions.router)
     dp.include_router(admin_tools.router)
     dp.include_router(advertisement_handler.router)
-    dp.include_router(start.router)
 
     logger.info("🌾 Agro Marketplace Bot запущено!")
     logger.info(f"📋 Адміністратори: {ADMIN_IDS}")
