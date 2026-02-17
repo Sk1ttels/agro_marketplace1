@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
 """
 Agro Marketplace — Admin Web Panel
-✅ Виправлено: дублікат context_processor
-✅ Виправлено: init_schema() без параметрів
-✅ Виправлено: всі роути з правильним закриттям з'єднань
-✅ Додано: /api/ping, /api/db-check
+✅ Синхронізація з ботом через спільну SQLite БД + JSON-файл подій
+✅ Бот отримує сповіщення про бан/розбан/зміну лота через FileBasedSync
+✅ Єдиний context_processor, правильне закриття з'єднань
 """
 
 import csv
@@ -26,6 +25,23 @@ from config.settings import FLASK_SECRET, ADMIN_USER, ADMIN_PASS, DB_PATH
 from .db import get_conn, init_schema, get_setting, set_setting
 from .auth import AdminUser, check_login
 
+# Імпорт FileBasedSync для відправки подій боту
+try:
+    from src.bot.services.sync_service import FileBasedSync
+except ImportError:
+    # Fallback якщо запускається не з кореня проекту
+    try:
+        import sys
+        sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+        from src.bot.services.sync_service import FileBasedSync
+    except ImportError:
+        class FileBasedSync:
+            """Заглушка якщо sync_service недоступний"""
+            @classmethod
+            def write_event(cls, *a, **kw): pass
+            @classmethod
+            def read_unprocessed_events(cls): return []
+
 logger = logging.getLogger(__name__)
 
 
@@ -41,7 +57,7 @@ def create_app() -> Flask:
     # Flask-Login
     login_manager = LoginManager()
     login_manager.login_view = "login"
-    login_manager.login_message = "Будь ласка, увійдіть для доступу до цієї сторінки."
+    login_manager.login_message = "Будь ласка, увійдіть для доступу."
     login_manager.login_message_category = "warning"
     login_manager.init_app(app)
 
@@ -56,15 +72,15 @@ def create_app() -> Flask:
     except Exception as e:
         logger.error("DB init failed: %s", e)
 
-    # Єдиний context_processor з дефолтними значеннями
+    # Єдиний context_processor
     @app.context_processor
     def inject_defaults():
         return {
             "stats": {"users": 0, "lots": 0, "active_lots": 0, "banned": 0},
             "weekly_data": {
                 "labels": ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Нд"],
-                "new_users": [0, 0, 0, 0, 0, 0, 0],
-                "new_lots":  [0, 0, 0, 0, 0, 0, 0],
+                "new_users": [0] * 7,
+                "new_lots":  [0] * 7,
             },
             "recent_lots": [],
         }
@@ -133,12 +149,7 @@ def create_app() -> Flask:
                 except Exception:
                     pass
 
-            # Тижнева статистика
-            weekly_data = {
-                "labels": [],
-                "new_users": [0] * 7,
-                "new_lots":  [0] * 7,
-            }
+            weekly_data = {"labels": [], "new_users": [0] * 7, "new_lots": [0] * 7}
             for i in range(6, -1, -1):
                 d = datetime.datetime.now() - datetime.timedelta(days=i)
                 weekly_data["labels"].append(["Пн","Вт","Ср","Чт","Пт","Сб","Нд"][d.weekday()])
@@ -147,8 +158,7 @@ def create_app() -> Flask:
                 try:
                     for i in range(6, -1, -1):
                         row = conn.execute(
-                            "SELECT COUNT(*) AS c FROM users WHERE date(created_at)=date('now','-'||?||' days')",
-                            (i,)
+                            "SELECT COUNT(*) AS c FROM users WHERE date(created_at)=date('now','-'||?||' days')", (i,)
                         ).fetchone()
                         weekly_data["new_users"][6 - i] = row["c"] if row else 0
                 except Exception:
@@ -158,8 +168,7 @@ def create_app() -> Flask:
                 try:
                     for i in range(6, -1, -1):
                         row = conn.execute(
-                            "SELECT COUNT(*) AS c FROM lots WHERE date(created_at)=date('now','-'||?||' days')",
-                            (i,)
+                            "SELECT COUNT(*) AS c FROM lots WHERE date(created_at)=date('now','-'||?||' days')", (i,)
                         ).fetchone()
                         weekly_data["new_lots"][6 - i] = row["c"] if row else 0
                 except Exception:
@@ -172,12 +181,7 @@ def create_app() -> Flask:
                 except Exception:
                     pass
 
-            return render_template(
-                "dashboard.html",
-                stats=stats,
-                weekly_data=weekly_data,
-                recent_lots=recent_lots,
-            )
+            return render_template("dashboard.html", stats=stats, weekly_data=weekly_data, recent_lots=recent_lots)
         finally:
             conn.close()
 
@@ -190,29 +194,22 @@ def create_app() -> Flask:
         try:
             if not _has_table(conn, "users"):
                 return render_template("users.html", rows=[], q=q)
-
             cols = _table_cols(conn, "users")
             where, params = [], []
-
             if q:
                 search = []
                 if "telegram_id" in cols:
-                    search.append("CAST(telegram_id AS TEXT) LIKE ?")
-                    params.append(f"%{q}%")
+                    search.append("CAST(telegram_id AS TEXT) LIKE ?"); params.append(f"%{q}%")
                 if "username" in cols:
-                    search.append("LOWER(COALESCE(username,'')) LIKE LOWER(?)")
-                    params.append(f"%{q}%")
+                    search.append("LOWER(COALESCE(username,'')) LIKE LOWER(?)"); params.append(f"%{q}%")
                 if "full_name" in cols:
-                    search.append("LOWER(COALESCE(full_name,'')) LIKE LOWER(?)")
-                    params.append(f"%{q}%")
+                    search.append("LOWER(COALESCE(full_name,'')) LIKE LOWER(?)"); params.append(f"%{q}%")
                 if search:
                     where.append(f"({' OR '.join(search)})")
-
             sql = "SELECT * FROM users"
             if where:
                 sql += " WHERE " + " AND ".join(where)
             sql += " ORDER BY id DESC LIMIT 300"
-
             rows = conn.execute(sql, tuple(params)).fetchall()
             return render_template("users.html", rows=rows, q=q)
         finally:
@@ -224,12 +221,11 @@ def create_app() -> Flask:
         conn = get_conn()
         try:
             if not _has_table(conn, "users"):
-                flash("Таблиця користувачів не знайдена", "danger")
+                flash("Таблиця не знайдена", "danger")
                 return redirect(url_for("users_page"))
             users = conn.execute("SELECT * FROM users ORDER BY id DESC").fetchall()
         finally:
             conn.close()
-
         output = StringIO()
         if users:
             writer = csv.DictWriter(output, fieldnames=list(users[0].keys()))
@@ -237,12 +233,9 @@ def create_app() -> Flask:
             for u in users:
                 writer.writerow(dict(u))
         output.seek(0)
-        return Response(
-            output.getvalue(),
-            mimetype="text/csv",
-            headers={"Content-Disposition": "attachment;filename=users_export.csv",
-                     "Content-Type": "text/csv; charset=utf-8"},
-        )
+        return Response(output.getvalue(), mimetype="text/csv",
+                        headers={"Content-Disposition": "attachment;filename=users_export.csv",
+                                 "Content-Type": "text/csv; charset=utf-8"})
 
     @app.get("/users/<int:user_id>")
     @login_required
@@ -250,7 +243,7 @@ def create_app() -> Flask:
         conn = get_conn()
         try:
             if not _has_table(conn, "users"):
-                flash("Таблиця користувачів не знайдена", "danger")
+                flash("Таблиця не знайдена", "danger")
                 return redirect(url_for("users_page"))
             user = conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
             if not user:
@@ -259,8 +252,7 @@ def create_app() -> Flask:
             lots = []
             if _has_table(conn, "lots"):
                 lots = conn.execute(
-                    "SELECT * FROM lots WHERE owner_user_id=? ORDER BY id DESC LIMIT 50",
-                    (user_id,)
+                    "SELECT * FROM lots WHERE owner_user_id=? ORDER BY id DESC LIMIT 50", (user_id,)
                 ).fetchall()
         finally:
             conn.close()
@@ -269,18 +261,34 @@ def create_app() -> Flask:
     @app.post("/users/<int:user_id>/ban")
     @login_required
     def user_ban(user_id: int):
+        """Бан користувача + сповіщення бота через FileBasedSync"""
         conn = get_conn()
         try:
-            if _has_table(conn, "users") and _has_col(conn, "users", "is_banned"):
-                conn.execute("UPDATE users SET is_banned=1 WHERE id=?", (user_id,))
-                conn.commit()
-                flash("Користувача забанено ✅", "success")
-            else:
-                flash("Неможливо забанити: поле is_banned не знайдено ❌", "danger")
+            if not _has_table(conn, "users") or not _has_col(conn, "users", "is_banned"):
+                flash("Неможливо забанити ❌", "danger")
+                return redirect(url_for("users_page"))
+
+            # Отримуємо telegram_id ДО оновлення
+            user = conn.execute("SELECT telegram_id FROM users WHERE id=?", (user_id,)).fetchone()
+            telegram_id = user["telegram_id"] if user else None
+
+            conn.execute("UPDATE users SET is_banned=1 WHERE id=?", (user_id,))
+            conn.commit()
+            flash("Користувача забанено ✅", "success")
+
+            # Відправляємо подію боту — він сповістить користувача в Telegram
+            if telegram_id:
+                FileBasedSync.write_event("user_banned", {
+                    "user_id": user_id,
+                    "telegram_id": telegram_id,
+                })
+                logger.info("Sync event 'user_banned' sent for telegram_id=%s", telegram_id)
+
         except Exception as e:
             logger.error("Error banning user %s: %s", user_id, e)
             flash(f"Помилка: {e}", "danger")
-            conn.rollback()
+            try: conn.rollback()
+            except Exception: pass
         finally:
             conn.close()
         return redirect(url_for("users_page"))
@@ -288,18 +296,32 @@ def create_app() -> Flask:
     @app.post("/users/<int:user_id>/unban")
     @login_required
     def user_unban(user_id: int):
+        """Розбан користувача + сповіщення бота"""
         conn = get_conn()
         try:
-            if _has_table(conn, "users") and _has_col(conn, "users", "is_banned"):
-                conn.execute("UPDATE users SET is_banned=0 WHERE id=?", (user_id,))
-                conn.commit()
-                flash("Користувача розбанено ✅", "success")
-            else:
-                flash("Неможливо розбанити: поле is_banned не знайдено ❌", "danger")
+            if not _has_table(conn, "users") or not _has_col(conn, "users", "is_banned"):
+                flash("Неможливо розбанити ❌", "danger")
+                return redirect(url_for("users_page"))
+
+            user = conn.execute("SELECT telegram_id FROM users WHERE id=?", (user_id,)).fetchone()
+            telegram_id = user["telegram_id"] if user else None
+
+            conn.execute("UPDATE users SET is_banned=0 WHERE id=?", (user_id,))
+            conn.commit()
+            flash("Користувача розбанено ✅", "success")
+
+            if telegram_id:
+                FileBasedSync.write_event("user_unbanned", {
+                    "user_id": user_id,
+                    "telegram_id": telegram_id,
+                })
+                logger.info("Sync event 'user_unbanned' sent for telegram_id=%s", telegram_id)
+
         except Exception as e:
             logger.error("Error unbanning user %s: %s", user_id, e)
             flash(f"Помилка: {e}", "danger")
-            conn.rollback()
+            try: conn.rollback()
+            except Exception: pass
         finally:
             conn.close()
         return redirect(url_for("users_page"))
@@ -331,7 +353,7 @@ def create_app() -> Flask:
         conn = get_conn()
         try:
             if not _has_table(conn, "lots"):
-                flash("Таблиця лотів не знайдена", "danger")
+                flash("Таблиця не знайдена", "danger")
                 return redirect(url_for("lots_page"))
             lots = conn.execute("SELECT * FROM lots ORDER BY id DESC").fetchall()
         finally:
@@ -345,11 +367,8 @@ def create_app() -> Flask:
         for lot in lots:
             writer.writerow(dict(lot))
         output.seek(0)
-        return Response(
-            output.getvalue(),
-            mimetype="text/csv",
-            headers={"Content-Disposition": "attachment;filename=lots_export.csv"},
-        )
+        return Response(output.getvalue(), mimetype="text/csv",
+                        headers={"Content-Disposition": "attachment;filename=lots_export.csv"})
 
     @app.get("/lots/<int:lot_id>")
     @login_required
@@ -357,7 +376,7 @@ def create_app() -> Flask:
         conn = get_conn()
         try:
             if not _has_table(conn, "lots"):
-                flash("Таблиця лотів не знайдена", "danger")
+                flash("Таблиця не знайдена", "danger")
                 return redirect(url_for("lots_page"))
             lot = conn.execute("SELECT * FROM lots WHERE id=?", (lot_id,)).fetchone()
             if not lot:
@@ -365,12 +384,28 @@ def create_app() -> Flask:
                 return redirect(url_for("lots_page"))
             owner = None
             if _has_table(conn, "users") and lot["owner_user_id"]:
-                owner = conn.execute(
-                    "SELECT * FROM users WHERE id=?", (lot["owner_user_id"],)
-                ).fetchone()
+                owner = conn.execute("SELECT * FROM users WHERE id=?", (lot["owner_user_id"],)).fetchone()
         finally:
             conn.close()
         return render_template("lot_detail.html", lot=lot, owner=owner)
+
+    def _notify_lot_status(conn, lot_id: int, new_status: str):
+        """Відправляє sync-подію боту при зміні статусу лота"""
+        try:
+            if _has_table(conn, "users"):
+                row = conn.execute("""
+                    SELECT u.telegram_id FROM lots l
+                    JOIN users u ON l.owner_user_id = u.id
+                    WHERE l.id=?
+                """, (lot_id,)).fetchone()
+                if row and row["telegram_id"]:
+                    FileBasedSync.write_event("lot_status_changed", {
+                        "lot_id": lot_id,
+                        "new_status": new_status,
+                        "owner_telegram_id": row["telegram_id"],
+                    })
+        except Exception as e:
+            logger.error("Failed to send lot sync event: %s", e)
 
     @app.post("/lots/<int:lot_id>/set_status")
     @login_required
@@ -381,6 +416,7 @@ def create_app() -> Flask:
             if _has_table(conn, "lots") and _has_col(conn, "lots", "status"):
                 conn.execute("UPDATE lots SET status=? WHERE id=?", (new_status, lot_id))
                 conn.commit()
+                _notify_lot_status(conn, lot_id, new_status)
                 flash(f"Статус лота #{lot_id} змінено на '{new_status}' ✅", "success")
             else:
                 flash("Неможливо змінити статус ❌", "danger")
@@ -402,6 +438,7 @@ def create_app() -> Flask:
                 elif "is_active" in cols:
                     conn.execute("UPDATE lots SET is_active=0 WHERE id=?", (lot_id,))
                 conn.commit()
+                _notify_lot_status(conn, lot_id, "closed")
                 flash(f"Лот #{lot_id} закрито ✅", "success")
         finally:
             conn.close()
@@ -421,6 +458,7 @@ def create_app() -> Flask:
                 elif "is_active" in cols:
                     conn.execute("UPDATE lots SET is_active=1 WHERE id=?", (lot_id,))
                 conn.commit()
+                _notify_lot_status(conn, lot_id, "active")
                 flash(f"Лот #{lot_id} активовано ✅", "success")
         finally:
             conn.close()
@@ -436,13 +474,11 @@ def create_app() -> Flask:
                 return render_template("contacts.html", contacts=[])
             contacts = conn.execute("""
                 SELECT c.id, c.user_id, c.contact_user_id, c.status, c.created_at,
-                       u1.full_name as user_name, u1.username as user_username,
-                       u1.telegram_id as user_telegram_id,
-                       u2.full_name as contact_name, u2.username as contact_username,
-                       u2.telegram_id as contact_telegram_id
+                       u1.full_name as user_name, u1.username as user_username, u1.telegram_id as user_telegram_id,
+                       u2.full_name as contact_name, u2.username as contact_username, u2.telegram_id as contact_telegram_id
                 FROM contacts c
-                LEFT JOIN users u1 ON c.user_id = u1.id
-                LEFT JOIN users u2 ON c.contact_user_id = u2.id
+                LEFT JOIN users u1 ON c.user_id=u1.id
+                LEFT JOIN users u2 ON c.contact_user_id=u2.id
                 ORDER BY c.created_at DESC LIMIT 500
             """).fetchall()
             return render_template("contacts.html", contacts=contacts)
@@ -454,12 +490,12 @@ def create_app() -> Flask:
     @login_required
     def settings_page():
         s = {
-            "platform_name": get_setting("platform_name", "Agro Marketplace"),
-            "currency":       get_setting("currency", "UAH"),
-            "min_price":      get_setting("min_price", "0"),
-            "max_price":      get_setting("max_price", "999999"),
-            "example_amount": get_setting("example_amount", "25т"),
-            "auto_moderation":get_setting("auto_moderation", "0"),
+            "platform_name":  get_setting("platform_name", "Agro Marketplace"),
+            "currency":        get_setting("currency", "UAH"),
+            "min_price":       get_setting("min_price", "0"),
+            "max_price":       get_setting("max_price", "999999"),
+            "example_amount":  get_setting("example_amount", "25т"),
+            "auto_moderation": get_setting("auto_moderation", "0"),
         }
         return render_template("settings.html", s=s)
 
@@ -469,23 +505,10 @@ def create_app() -> Flask:
         for key in ["platform_name", "currency", "min_price", "max_price", "example_amount"]:
             set_setting(key, request.form.get(key, ""))
         set_setting("auto_moderation", "1" if request.form.get("auto_moderation") else "0")
+        # Сповіщаємо бота про зміну налаштувань
+        FileBasedSync.write_event("settings_changed", {"changed": True})
         flash("Налаштування збережено ✅", "success")
         return redirect(url_for("settings_page"))
-
-    # -------- Синхронізація --------
-    @app.get("/sync")
-    @login_required
-    def sync_page():
-        conn = get_conn()
-        try:
-            stats = {"users_count": 0, "lots_count": 0}
-            if _has_table(conn, "users"):
-                stats["users_count"] = conn.execute("SELECT COUNT(*) AS c FROM users").fetchone()["c"]
-            if _has_table(conn, "lots"):
-                stats["lots_count"] = conn.execute("SELECT COUNT(*) AS c FROM lots").fetchone()["c"]
-        finally:
-            conn.close()
-        return render_template("sync.html", unprocessed_events=[], total_processed=0, stats=stats)
 
     # -------- Реклама --------
     @app.get("/advertisements")
@@ -542,8 +565,7 @@ def create_app() -> Flask:
         try:
             conn.execute("""
                 UPDATE advertisements
-                SET is_active = CASE WHEN is_active=1 THEN 0 ELSE 1 END,
-                    updated_at = CURRENT_TIMESTAMP
+                SET is_active=CASE WHEN is_active=1 THEN 0 ELSE 1 END, updated_at=CURRENT_TIMESTAMP
                 WHERE id=?
             """, (ad_id,))
             conn.commit()
@@ -571,6 +593,22 @@ def create_app() -> Flask:
             conn.close()
         return redirect(url_for("advertisements_page"))
 
+    # -------- Синхронізація (моніторинг) --------
+    @app.get("/sync")
+    @login_required
+    def sync_page():
+        conn = get_conn()
+        try:
+            stats = {"users_count": 0, "lots_count": 0}
+            if _has_table(conn, "users"):
+                stats["users_count"] = conn.execute("SELECT COUNT(*) AS c FROM users").fetchone()["c"]
+            if _has_table(conn, "lots"):
+                stats["lots_count"] = conn.execute("SELECT COUNT(*) AS c FROM lots").fetchone()["c"]
+        finally:
+            conn.close()
+        unprocessed = FileBasedSync.read_unprocessed_events()
+        return render_template("sync.html", unprocessed_events=unprocessed, total_processed=0, stats=stats)
+
     # -------- API --------
     @app.get("/api/ping")
     def api_ping():
@@ -587,12 +625,10 @@ def create_app() -> Flask:
                 "db_size":   DB_PATH.stat().st_size if DB_PATH.exists() else 0,
                 "tables":    {},
             }
-            tables = conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
-            for t in tables:
+            for t in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall():
                 name = t["name"]
                 try:
-                    count = conn.execute(f"SELECT COUNT(*) AS c FROM {name}").fetchone()["c"]
-                    result["tables"][name] = count
+                    result["tables"][name] = conn.execute(f"SELECT COUNT(*) AS c FROM {name}").fetchone()["c"]
                 except Exception as e:
                     result["tables"][name] = f"Error: {e}"
             return jsonify(result)
@@ -614,10 +650,9 @@ def create_app() -> Flask:
 # ============ HELPERS ============
 
 def _has_table(conn, table: str) -> bool:
-    row = conn.execute(
+    return bool(conn.execute(
         "SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table,)
-    ).fetchone()
-    return bool(row)
+    ).fetchone())
 
 
 def _table_cols(conn, table: str) -> list:
@@ -632,15 +667,13 @@ def _has_col(conn, table: str, col: str) -> bool:
 
 
 # ============ ЗАПУСК ============
-
 if __name__ == "__main__":
     import os
     app = create_app()
     port = int(os.environ.get("PORT", 5000))
     print("=" * 60)
     print("🌾 Agro Marketplace - Web Panel")
-    print("=" * 60)
-    print(f"🔗 URL: http://0.0.0.0:{port}")
+    print(f"🔗 http://0.0.0.0:{port}")
     print(f"👤 Login: {ADMIN_USER}")
     print("=" * 60)
     app.run(host="0.0.0.0", port=port, debug=False)

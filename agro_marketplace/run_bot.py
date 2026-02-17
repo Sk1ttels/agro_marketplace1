@@ -31,11 +31,14 @@ if not BOT_TOKEN:
 # Імпорт handlers (з src)
 from src.bot.handlers import (
     start, registration, market, chat, logistics,
-    admin_tools, subscriptions, offers_handlers, calculators
+    admin_tools, subscriptions, offers_handlers, calculators,
+    advertisement_handler
 )
 
 # Імпорт синхронізації
 from src.bot.middlewares.sync import SyncEventProcessor
+from src.bot.middlewares.ban_check import BanCheckMiddleware
+from src.bot.middlewares.advertisement import AdvertisementMiddleware
 
 # Налаштування логування
 logging.basicConfig(
@@ -176,6 +179,7 @@ async def main():
     dp.include_router(logistics.router)
     dp.include_router(subscriptions.router)
     dp.include_router(admin_tools.router)
+    dp.include_router(advertisement_handler.router)
 
     logger.info("🌾 Agro Marketplace Bot запущено!")
     logger.info(f"📋 Адміністратори: {ADMIN_IDS}")
