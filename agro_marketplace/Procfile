@@ -1,1 +1,1 @@
-web: python run_unified.py
+web: ENABLE_WSGI_BOT_AUTOSTART=0 . /opt/venv/bin/activate && python run_unified.py
