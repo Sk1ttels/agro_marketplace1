@@ -33,6 +33,9 @@
       <a href="/lots" class="nav-link {% if request.path.startswith('/lots') %}active{% endif %}">
         <i class="ni fas fa-box"></i> Лоти
       </a>
+      <a href="/logistics" class="nav-link {% if request.path.startswith('/logistics') %}active{% endif %}">
+        <i class="ni fas fa-truck"></i> Логістика
+      </a>
 
       <div class="nav-section" style="margin-top:16px">Маркетинг</div>
       <a href="/advertisements" class="nav-link {% if request.path.startswith('/advertisements') %}active{% endif %}">
@@ -68,17 +71,20 @@
   <div class="main">
     <!-- TOPBAR -->
     <header class="topbar">
-      <div>
+      <button class="topbar-btn mobile-menu-btn" id="mobileToggle" title="Меню" style="display:none">
+        <i class="fas fa-bars"></i>
+      </button>
+      <div style="min-width:0">
         <div class="topbar-title">{% block page_title %}{% endblock %}</div>
-        <div class="topbar-desc">{% block page_desc %}{% endblock %}</div>
+        <div class="topbar-desc mobile-hide">{% block page_desc %}{% endblock %}</div>
       </div>
       <div class="topbar-right">
-        <div class="sync-pill" id="syncPill">
+        <div class="sync-pill mobile-hide" id="syncPill">
           <div class="sync-dot" id="syncDot"></div>
           <span id="syncText">Синхронізовано</span>
         </div>
         <button class="topbar-btn" onclick="location.reload()" title="Оновити"><i class="fas fa-sync-alt"></i></button>
-        <a href="/api/db-check" target="_blank" class="topbar-btn" title="DB Info"><i class="fas fa-database"></i></a>
+        <a href="/logout" class="topbar-btn mobile-only" title="Вийти" style="color:#fb7185"><i class="fas fa-sign-out-alt"></i></a>
       </div>
     </header>
 
@@ -104,6 +110,48 @@
 </div>
 
 <script>
+// Mobile overlay
+const overlay = document.createElement('div');
+overlay.id = 'sidebarOverlay';
+overlay.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:99;backdrop-filter:blur(2px)';
+document.body.appendChild(overlay);
+
+function openSidebar() {
+  document.getElementById('sidebar').classList.add('open');
+  overlay.style.display = 'block';
+  document.body.style.overflow = 'hidden';
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  overlay.style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+overlay.addEventListener('click', closeSidebar);
+
+document.addEventListener('click', e => {
+  if (e.target.closest('#mobileToggle')) {
+    const isOpen = document.getElementById('sidebar').classList.contains('open');
+    isOpen ? closeSidebar() : openSidebar();
+  }
+});
+
+// Close sidebar on nav link click (mobile)
+document.querySelectorAll('.nav-link').forEach(l => {
+  l.addEventListener('click', () => {
+    if (window.innerWidth <= 900) closeSidebar();
+  });
+});
+
+// Show/hide mobile button
+function checkMobile() {
+  const btn = document.querySelector('.mobile-menu-btn');
+  if (!btn) return;
+  btn.style.display = window.innerWidth <= 900 ? 'flex' : 'none';
+}
+checkMobile();
+window.addEventListener('resize', checkMobile);
+
 // ── Auto-refresh sync status ──
 async function checkSync() {
   try {
@@ -117,28 +165,52 @@ async function checkSync() {
     if (count > 0) {
       dot.className = 'sync-dot loading';
       text.textContent = count + ' подій очікують';
-      badge.textContent = count;
-      badge.style.display = 'inline-block';
+      if(badge){badge.textContent = count; badge.style.display = 'inline-block';}
     } else {
       dot.className = 'sync-dot';
       text.textContent = 'Синхронізовано';
-      badge.style.display = 'none';
+      if(badge) badge.style.display = 'none';
     }
   } catch(e) {
     const dot = document.getElementById('syncDot');
-    if(dot) { dot.className = 'sync-dot err'; }
+    if(dot) dot.className = 'sync-dot err';
   }
 }
 checkSync();
 setInterval(checkSync, 8000);
-
-// Mobile sidebar toggle
-document.addEventListener('click', e => {
-  if(e.target.closest('#mobileToggle')) {
-    document.getElementById('sidebar').classList.toggle('open');
-  }
-});
 </script>
+
+<!-- MOBILE BOTTOM NAV -->
+<nav class="mobile-bottom-nav">
+  <div class="mbn-items">
+    <a href="/dashboard" class="mbn-item {% if request.path.startswith('/dashboard') or request.path == '/' %}active{% endif %}">
+      <i class="fas fa-chart-line"></i>
+      <span>Дашборд</span>
+      <div class="mbn-dot"></div>
+    </a>
+    <a href="/users" class="mbn-item {% if request.path.startswith('/users') %}active{% endif %}">
+      <i class="fas fa-users"></i>
+      <span>Юзери</span>
+      <div class="mbn-dot"></div>
+    </a>
+    <a href="/lots" class="mbn-item {% if request.path.startswith('/lots') %}active{% endif %}">
+      <i class="fas fa-box"></i>
+      <span>Лоти</span>
+      <div class="mbn-dot"></div>
+    </a>
+    <a href="/logistics" class="mbn-item {% if request.path.startswith('/logistics') %}active{% endif %}">
+      <i class="fas fa-truck"></i>
+      <span>Логіст.</span>
+      <div class="mbn-dot"></div>
+    </a>
+    <button class="mbn-item" id="mobileToggle">
+      <i class="fas fa-bars"></i>
+      <span>Більше</span>
+      <div class="mbn-dot"></div>
+    </button>
+  </div>
+</nav>
+
 
 {% else %}
 {% block login_content %}{% endblock %}

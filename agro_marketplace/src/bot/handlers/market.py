@@ -186,6 +186,13 @@ def kb_skip():
     kb.adjust(1)
     return kb.as_markup(resize_keyboard=True)
 
+def kb_back_only():
+    kb = ReplyKeyboardBuilder()
+    kb.button(text="⬅️ Назад")
+    kb.adjust(1)
+    return kb.as_markup(resize_keyboard=True)
+
+
 
 def kb_lot_actions(lot_id: int, is_owner: bool):
     kb = InlineKeyboardBuilder()
@@ -298,7 +305,7 @@ async def lot_location_selected(message: Message, state: FSMContext):
         return
     await state.update_data(location=location)
     await state.set_state(CreateLot.volume)
-    await message.answer("Введіть обсяг (у тоннах) або «⏭ Пропустити» (буде 0)", reply_markup=kb_skip())
+    await message.answer("Введіть обсяг (у тоннах). Обсяг є обов'язковим.", reply_markup=kb_back_only())
 
 
 @router.message(CreateLot.volume)
@@ -308,15 +315,15 @@ async def lot_volume_entered(message: Message, state: FSMContext):
         await message.answer("Оберіть місце", reply_markup=kb_locations())
         return
     if message.text == "⏭ Пропустити":
-        volume = 0.0
-    else:
-        try:
-            volume = float(message.text.replace(",", ".").replace("т", "").strip())
-            if volume < 0:
-                raise ValueError
-        except Exception:
-            await message.answer("❌ Введіть коректний обсяг. Приклад: 25")
-            return
+        await message.answer("❌ Обсяг є обов'язковим. Введіть число, наприклад: 25")
+        return
+    try:
+        volume = float(message.text.replace(",", ".").replace("т", "").strip())
+        if volume <= 0:
+            raise ValueError
+    except Exception:
+        await message.answer("❌ Введіть коректний обсяг (> 0). Приклад: 25")
+        return
     await state.update_data(volume=volume, volume_tons=volume)
     await state.set_state(CreateLot.price)
     await message.answer("Введіть ціну (грн/т) або «⏭ Пропустити» (договірна)", reply_markup=kb_skip())

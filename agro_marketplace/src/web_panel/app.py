@@ -379,6 +379,7 @@ def create_app() -> Flask:
                 flash("Таблиця не знайдена", "danger")
                 return redirect(url_for("lots_page"))
             lot = conn.execute("SELECT * FROM lots WHERE id=?", (lot_id,)).fetchone()
+            cols_lots = _table_cols(conn, "lots")
             if not lot:
                 flash(f"Лот #{lot_id} не знайдений", "danger")
                 return redirect(url_for("lots_page"))
@@ -387,7 +388,7 @@ def create_app() -> Flask:
                 owner = conn.execute("SELECT * FROM users WHERE id=?", (lot["owner_user_id"],)).fetchone()
         finally:
             conn.close()
-        return render_template("lot_detail.html", lot=lot, owner=owner)
+        return render_template("lot_detail.html", lot=lot, owner=owner, cols=cols_lots)
 
     def _notify_lot_status(conn, lot_id: int, new_status: str):
         """Відправляє sync-подію боту при зміні статусу лота"""
@@ -644,6 +645,219 @@ def create_app() -> Flask:
             return jsonify({"status": "ok", "received": True, "data": data})
         return jsonify({"status": "ok", "message": "Sync endpoint ready"})
 
+
+    # ================== LOGISTICS — Повна адмін-панель ==================
+
+    def _log_get_stats(conn):
+        """Статистика логістики"""
+        stats = {"total_vehicles": 0, "available_vehicles": 0, "total_shipments": 0, "active_shipments": 0}
+        try:
+            if _has_table(conn, "vehicles"):
+                stats["total_vehicles"] = conn.execute("SELECT COUNT(*) FROM vehicles").fetchone()[0]
+                stats["available_vehicles"] = conn.execute("SELECT COUNT(*) FROM vehicles WHERE status='available'").fetchone()[0]
+            if _has_table(conn, "shipments"):
+                stats["total_shipments"] = conn.execute("SELECT COUNT(*) FROM shipments").fetchone()[0]
+                stats["active_shipments"] = conn.execute("SELECT COUNT(*) FROM shipments WHERE status='active'").fetchone()[0]
+        except Exception:
+            pass
+        return stats
+
+    @app.get("/logistics")
+    @login_required
+    def logistics_page():
+        tab = request.args.get("tab", "shipments")
+        q = request.args.get("q", "").strip()
+        status_filter = request.args.get("status", "").strip()
+
+        conn = get_conn()
+        try:
+            stats = _log_get_stats(conn)
+            shipments = []
+            vehicles = []
+
+            if tab == "shipments" and _has_table(conn, "shipments"):
+                conditions = []
+                params = []
+                if q:
+                    conditions.append("(cargo_type LIKE ? OR from_region LIKE ? OR to_region LIKE ? OR comment LIKE ?)")
+                    params.extend([f"%{q}%"] * 4)
+                if status_filter:
+                    conditions.append("status=?")
+                    params.append(status_filter)
+                where = (" WHERE " + " AND ".join(conditions)) if conditions else ""
+                shipments = conn.execute(
+                    f"SELECT * FROM shipments{where} ORDER BY id DESC LIMIT 200",
+                    tuple(params)
+                ).fetchall()
+
+            elif tab == "vehicles" and _has_table(conn, "vehicles"):
+                conditions = []
+                params = []
+                if q:
+                    conditions.append("(base_region LIKE ? OR body_type LIKE ? OR comment LIKE ?)")
+                    params.extend([f"%{q}%"] * 3)
+                if status_filter:
+                    conditions.append("status=?")
+                    params.append(status_filter)
+                where = (" WHERE " + " AND ".join(conditions)) if conditions else ""
+                vehicles = conn.execute(
+                    f"SELECT * FROM vehicles{where} ORDER BY id DESC LIMIT 200",
+                    tuple(params)
+                ).fetchall()
+
+        finally:
+            conn.close()
+
+        return render_template(
+            "logistics.html",
+            tab=tab,
+            q=q,
+            status_filter=status_filter,
+            stats=stats,
+            shipments=shipments,
+            vehicles=vehicles,
+        )
+
+    # --- Shipment status change ---
+    @app.post("/logistics/shipment/<int:sid>/status")
+    @login_required
+    def logistics_shipment_status(sid: int):
+        new_status = request.form.get("status", "active")
+        if new_status not in ("active", "done", "cancelled"):
+            flash("Невірний статус", "danger")
+            return redirect(url_for("logistics_page", tab="shipments"))
+        conn = get_conn()
+        try:
+            if _has_table(conn, "shipments"):
+                conn.execute("UPDATE shipments SET status=?, updated_at=datetime('now') WHERE id=?", (new_status, sid))
+                conn.commit()
+                labels = {"active": "Активна", "done": "Виконана", "cancelled": "Скасована"}
+                flash(f"Заявка #{sid}: {labels.get(new_status, new_status)} ✅", "success")
+        finally:
+            conn.close()
+        return redirect(url_for("logistics_page", tab="shipments"))
+
+    # --- Shipment edit GET ---
+    @app.get("/logistics/shipment/<int:sid>/edit")
+    @login_required
+    def logistics_shipment_edit(sid: int):
+        conn = get_conn()
+        try:
+            row = conn.execute("SELECT * FROM shipments WHERE id=?", (sid,)).fetchone()
+            if not row:
+                flash("Заявку не знайдено", "danger")
+                return redirect(url_for("logistics_page", tab="shipments"))
+            cols = _table_cols(conn, "shipments")
+        finally:
+            conn.close()
+        return render_template("logistics_edit.html", table="shipments", cols=cols, row=row, pk="id",
+                               back_url=url_for("logistics_page", tab="shipments"))
+
+    # --- Shipment edit POST ---
+    @app.post("/logistics/shipment/<int:sid>/edit")
+    @login_required
+    def logistics_shipment_edit_post(sid: int):
+        conn = get_conn()
+        try:
+            cols = _table_cols(conn, "shipments")
+            editable = [c for c in cols if c not in ("id", "creator_user_id", "created_at")]
+            updates, params = [], []
+            for c in editable:
+                if c in request.form:
+                    updates.append(f"{c}=?")
+                    params.append(request.form.get(c) or None)
+            if updates:
+                params.append(sid)
+                conn.execute(f"UPDATE shipments SET {', '.join(updates)} WHERE id=?", tuple(params))
+                conn.commit()
+                flash("Заявку оновлено ✅", "success")
+        finally:
+            conn.close()
+        return redirect(url_for("logistics_page", tab="shipments"))
+
+    # --- Shipment delete ---
+    @app.post("/logistics/shipment/<int:sid>/delete")
+    @login_required
+    def logistics_shipment_delete(sid: int):
+        conn = get_conn()
+        try:
+            conn.execute("DELETE FROM shipments WHERE id=?", (sid,))
+            conn.commit()
+            flash(f"Заявку #{sid} видалено", "success")
+        finally:
+            conn.close()
+        return redirect(url_for("logistics_page", tab="shipments"))
+
+    # --- Vehicle status change ---
+    @app.post("/logistics/vehicle/<int:vid>/status")
+    @login_required
+    def logistics_vehicle_status(vid: int):
+        new_status = request.form.get("status", "available")
+        if new_status not in ("available", "busy"):
+            flash("Невірний статус", "danger")
+            return redirect(url_for("logistics_page", tab="vehicles"))
+        conn = get_conn()
+        try:
+            if _has_table(conn, "vehicles"):
+                conn.execute("UPDATE vehicles SET status=?, updated_at=datetime('now') WHERE id=?", (new_status, vid))
+                conn.commit()
+                label = "Доступний" if new_status == "available" else "Зайнятий"
+                flash(f"Авто #{vid}: {label} ✅", "success")
+        finally:
+            conn.close()
+        return redirect(url_for("logistics_page", tab="vehicles"))
+
+    # --- Vehicle edit GET ---
+    @app.get("/logistics/vehicle/<int:vid>/edit")
+    @login_required
+    def logistics_vehicle_edit(vid: int):
+        conn = get_conn()
+        try:
+            row = conn.execute("SELECT * FROM vehicles WHERE id=?", (vid,)).fetchone()
+            if not row:
+                flash("Авто не знайдено", "danger")
+                return redirect(url_for("logistics_page", tab="vehicles"))
+            cols = _table_cols(conn, "vehicles")
+        finally:
+            conn.close()
+        return render_template("logistics_edit.html", table="vehicles", cols=cols, row=row, pk="id",
+                               back_url=url_for("logistics_page", tab="vehicles"))
+
+    # --- Vehicle edit POST ---
+    @app.post("/logistics/vehicle/<int:vid>/edit")
+    @login_required
+    def logistics_vehicle_edit_post(vid: int):
+        conn = get_conn()
+        try:
+            cols = _table_cols(conn, "vehicles")
+            editable = [c for c in cols if c not in ("id", "owner_user_id", "created_at")]
+            updates, params = [], []
+            for c in editable:
+                if c in request.form:
+                    updates.append(f"{c}=?")
+                    params.append(request.form.get(c) or None)
+            if updates:
+                params.append(vid)
+                conn.execute(f"UPDATE vehicles SET {', '.join(updates)} WHERE id=?", tuple(params))
+                conn.commit()
+                flash("Авто оновлено ✅", "success")
+        finally:
+            conn.close()
+        return redirect(url_for("logistics_page", tab="vehicles"))
+
+    # --- Vehicle delete ---
+    @app.post("/logistics/vehicle/<int:vid>/delete")
+    @login_required
+    def logistics_vehicle_delete(vid: int):
+        conn = get_conn()
+        try:
+            conn.execute("DELETE FROM vehicles WHERE id=?", (vid,))
+            conn.commit()
+            flash(f"Авто #{vid} видалено", "success")
+        finally:
+            conn.close()
+        return redirect(url_for("logistics_page", tab="vehicles"))
+
     return app
 
 
@@ -664,6 +878,14 @@ def _table_cols(conn, table: str) -> list:
 
 def _has_col(conn, table: str, col: str) -> bool:
     return col in _table_cols(conn, table)
+
+
+def _list_tables(conn) -> list[str]:
+    """Повертає список таблиць (без системних)."""
+    rows = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
+    ).fetchall()
+    return [r[0] if not isinstance(r, dict) else r["name"] for r in rows]
 
 
 # ============ ЗАПУСК ============

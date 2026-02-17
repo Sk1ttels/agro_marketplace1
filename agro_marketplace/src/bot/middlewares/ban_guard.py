@@ -4,7 +4,12 @@ import aiosqlite
 from aiogram import BaseMiddleware
 from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove
 
-DB_FILE = "agro_bot.db"
+import os
+try:
+    from config.settings import DB_PATH  # type: ignore
+    DB_FILE = str(DB_PATH)
+except Exception:
+    DB_FILE = os.getenv("DB_FILE", "data/agro_bot.db")
 
 
 class BanGuardMiddleware(BaseMiddleware):

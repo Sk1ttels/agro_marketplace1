@@ -53,7 +53,7 @@
         {% endif %}
       </div>
       <div class="lc-row"><i class="fas fa-map-marker-alt"></i> {{ row['region'] or '—' }}</div>
-      <div class="lc-row"><i class="fas fa-weight-hanging"></i> {{ row['volume'] or row['volume_tons'] or '—' }} т</div>
+      <div class="lc-row"><i class="fas fa-weight-hanging"></i> {% if 'volume' in cols %}{{ row['volume'] }}{% elif 'volume_tons' in cols %}{{ row['volume_tons'] }}{% else %}—{% endif %} т</div>
       {% if row['location'] %}<div class="lc-row"><i class="fas fa-warehouse"></i> {{ row['location'] }}</div>{% endif %}
       {% if row['comment'] %}<div class="lc-row" style="margin-top:6px"><i class="fas fa-comment"></i> <em style="color:var(--tm)">{{ row['comment'][:60] }}{% if row['comment']|length > 60 %}…{% endif %}</em></div>{% endif %}
     </div>

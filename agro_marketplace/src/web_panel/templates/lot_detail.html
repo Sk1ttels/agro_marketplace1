@@ -31,7 +31,7 @@
               {{ ("%.0f"|format(lot['price']|float)) + ' грн/т' if lot['price'] else 'Договірна' }}
             </span>
           </div>
-          <div class="kv-row"><span class="kv-key">Об'єм</span><span class="kv-val">{{ lot['volume'] or lot['volume_tons'] or '—' }} т</span></div>
+          <div class="kv-row"><span class="kv-key">Об'єм</span><span class="kv-val">{% if 'volume' in cols %}{{ lot['volume'] }}{% elif 'volume_tons' in cols %}{{ lot['volume_tons'] }}{% else %}—{% endif %} т</span></div>
           <div class="kv-row"><span class="kv-key">Регіон</span><span class="kv-val">{{ lot['region'] or '—' }}</span></div>
           <div class="kv-row"><span class="kv-key">Місце</span><span class="kv-val">{{ lot['location'] or '—' }}</span></div>
           {% if lot['comment'] %}

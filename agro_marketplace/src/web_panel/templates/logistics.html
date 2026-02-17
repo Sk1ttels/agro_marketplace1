@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+{% block title %}Логістика — Agro Admin{% endblock %}
+{% block page_title %}🚚 Логістика{% endblock %}
+{% block page_desc %}Управління транспортом та заявками на перевезення{% endblock %}
+
+{% block content %}
+
+<!-- Stats Row -->
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px">
+  <div class="card" style="padding:20px;text-align:center">
+    <div style="font-size:28px;font-weight:700;color:var(--accent)">{{ stats.total_vehicles }}</div>
+    <div style="font-size:12px;color:var(--tm);margin-top:4px">Всього авто</div>
+  </div>
+  <div class="card" style="padding:20px;text-align:center">
+    <div style="font-size:28px;font-weight:700;color:#22c55e">{{ stats.available_vehicles }}</div>
+    <div style="font-size:12px;color:var(--tm);margin-top:4px">Доступних авто</div>
+  </div>
+  <div class="card" style="padding:20px;text-align:center">
+    <div style="font-size:28px;font-weight:700;color:#f59e0b">{{ stats.total_shipments }}</div>
+    <div style="font-size:12px;color:var(--tm);margin-top:4px">Всього заявок</div>
+  </div>
+  <div class="card" style="padding:20px;text-align:center">
+    <div style="font-size:28px;font-weight:700;color:#6366f1">{{ stats.active_shipments }}</div>
+    <div style="font-size:12px;color:var(--tm);margin-top:4px">Активних заявок</div>
+  </div>
+</div>
+
+<!-- Tabs -->
+<div class="card" style="margin-bottom:16px;padding:0">
+  <div style="display:flex;border-bottom:1px solid var(--border)">
+    <a href="/logistics?tab=shipments{% if q %}&q={{ q }}{% endif %}" 
+       class="tab-btn {% if tab=='shipments' %}active{% endif %}"
+       style="padding:14px 24px;border:none;background:none;cursor:pointer;font-size:14px;font-weight:600;color:{% if tab=='shipments' %}var(--accent){% else %}var(--tm){% endif %};border-bottom:{% if tab=='shipments' %}2px solid var(--accent){% else %}none{% endif %};text-decoration:none;display:block">
+      📦 Заявки <span style="background:{% if tab=='shipments' %}var(--accent){% else %}#e5e7eb{% endif %};color:{% if tab=='shipments' %}#fff{% else %}#6b7280{% endif %};padding:2px 8px;border-radius:12px;font-size:11px">{{ stats.total_shipments }}</span>
+    </a>
+    <a href="/logistics?tab=vehicles{% if q %}&q={{ q }}{% endif %}"
+       class="tab-btn {% if tab=='vehicles' %}active{% endif %}"
+       style="padding:14px 24px;border:none;background:none;cursor:pointer;font-size:14px;font-weight:600;color:{% if tab=='vehicles' %}var(--accent){% else %}var(--tm){% endif %};border-bottom:{% if tab=='vehicles' %}2px solid var(--accent){% else %}none{% endif %};text-decoration:none;display:block">
+      🚛 Транспорт <span style="background:{% if tab=='vehicles' %}var(--accent){% else %}#e5e7eb{% endif %};color:{% if tab=='vehicles' %}#fff{% else %}#6b7280{% endif %};padding:2px 8px;border-radius:12px;font-size:11px">{{ stats.total_vehicles }}</span>
+    </a>
+  </div>
+</div>
+
+<!-- Search & Filter -->
+<div class="card" style="margin-bottom:16px">
+  <form method="get" action="/logistics" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+    <input type="hidden" name="tab" value="{{ tab }}">
+    <div style="position:relative;flex:1;min-width:200px">
+      <i class="fas fa-search" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--tm);font-size:13px"></i>
+      <input name="q" value="{{ q }}" class="input" placeholder="Пошук за регіоном, вантажем..." style="padding-left:36px;width:100%">
+    </div>
+    {% if tab == 'shipments' %}
+    <select name="status" class="input" style="min-width:140px">
+      <option value="">Всі статуси</option>
+      <option value="active" {% if status_filter=='active' %}selected{% endif %}>✅ Активні</option>
+      <option value="done" {% if status_filter=='done' %}selected{% endif %}>✔️ Виконані</option>
+      <option value="cancelled" {% if status_filter=='cancelled' %}selected{% endif %}>❌ Скасовані</option>
+    </select>
+    {% else %}
+    <select name="status" class="input" style="min-width:140px">
+      <option value="">Всі статуси</option>
+      <option value="available" {% if status_filter=='available' %}selected{% endif %}>✅ Доступні</option>
+      <option value="busy" {% if status_filter=='busy' %}selected{% endif %}>🔴 Зайняті</option>
+    </select>
+    {% endif %}
+    <button class="btn" type="submit"><i class="fas fa-filter"></i> Фільтр</button>
+    {% if q or status_filter %}
+    <a href="/logistics?tab={{ tab }}" class="btn" style="background:#f3f4f6;color:#374151"><i class="fas fa-times"></i> Скинути</a>
+    {% endif %}
+  </form>
+</div>
+
+<!-- ============ SHIPMENTS TAB ============ -->
+{% if tab == 'shipments' %}
+<div class="card">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+    <h3 style="margin:0;font-size:16px">📦 Заявки на перевезення</h3>
+    <span style="font-size:12px;color:var(--tm)">Показано: {{ shipments|length }}</span>
+  </div>
+  {% if not shipments %}
+    <div class="empty" style="padding:40px;text-align:center">
+      <div style="font-size:48px;margin-bottom:12px">📭</div>
+      <div style="color:var(--tm)">Заявок не знайдено</div>
+    </div>
+  {% else %}
+  <div style="overflow-x:auto">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Вантаж</th>
+          <th>Обсяг</th>
+          <th>Маршрут</th>
+          <th>Коментар</th>
+          <th>Статус</th>
+          <th>Дата</th>
+          <th style="min-width:140px">Дії</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in shipments %}
+        <tr>
+          <td><code>#{{ s.id }}</code></td>
+          <td><b>{{ s.cargo_type }}</b></td>
+          <td>{{ s.volume_tons }} т</td>
+          <td style="white-space:nowrap">
+            <span style="color:#6366f1">{{ s.from_region }}</span>
+            <span style="color:var(--tm)"> → </span>
+            <span style="color:#059669">{{ s.to_region }}</span>
+            {% if s.from_location or s.to_location %}
+            <br><small style="color:var(--tm)">{{ s.from_location or '' }}{% if s.from_location and s.to_location %} → {% endif %}{{ s.to_location or '' }}</small>
+            {% endif %}
+          </td>
+          <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ s.comment or '—' }}</td>
+          <td>
+            <span class="badge badge-{% if s.status=='active' %}success{% elif s.status=='done' %}info{% else %}danger{% endif %}">
+              {% if s.status=='active' %}✅ Активна{% elif s.status=='done' %}✔️ Виконана{% else %}❌ Скасована{% endif %}
+            </span>
+          </td>
+          <td style="white-space:nowrap;font-size:12px;color:var(--tm)">{{ (s.created_at or '')[:10] }}</td>
+          <td>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              {% if s.status == 'active' %}
+              <form method="post" action="/logistics/shipment/{{ s.id }}/status" style="display:inline">
+                <input type="hidden" name="status" value="done">
+                <button class="btn btn-sm" type="submit" style="background:#22c55e;color:#fff" title="Виконано">✔️</button>
+              </form>
+              <form method="post" action="/logistics/shipment/{{ s.id }}/status" style="display:inline">
+                <input type="hidden" name="status" value="cancelled">
+                <button class="btn btn-sm btn-danger" type="submit" title="Скасувати" onclick="return confirm('Скасувати заявку?')">✖</button>
+              </form>
+              {% endif %}
+              <a class="btn btn-sm" href="/logistics/shipment/{{ s.id }}/edit">✏️</a>
+              <form method="post" action="/logistics/shipment/{{ s.id }}/delete" style="display:inline" onsubmit="return confirm('Видалити заявку #{{ s.id }}?')">
+                <button class="btn btn-sm btn-danger" type="submit">🗑</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+
+<!-- ============ VEHICLES TAB ============ -->
+{% else %}
+<div class="card">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+    <h3 style="margin:0;font-size:16px">🚛 Транспортний парк</h3>
+    <span style="font-size:12px;color:var(--tm)">Показано: {{ vehicles|length }}</span>
+  </div>
+  {% if not vehicles %}
+    <div class="empty" style="padding:40px;text-align:center">
+      <div style="font-size:48px;margin-bottom:12px">🚗</div>
+      <div style="color:var(--tm)">Транспорту не знайдено</div>
+    </div>
+  {% else %}
+  <div style="overflow-x:auto">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Тип</th>
+          <th>Вантажопідйомність</th>
+          <th>К-сть авто</th>
+          <th>База</th>
+          <th>Коментар</th>
+          <th>Статус</th>
+          <th>Дата</th>
+          <th style="min-width:120px">Дії</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for v in vehicles %}
+        <tr>
+          <td><code>#{{ v.id }}</code></td>
+          <td>
+            {% if v.body_type == 'grain' %}🌾 Зерновоз
+            {% elif v.body_type == 'tipper' %}🪨 Самоскид
+            {% elif v.body_type == 'tarp' %}🧵 Тент
+            {% else %}{{ v.body_type }}{% endif %}
+          </td>
+          <td><b>{{ v.capacity_tons }} т</b></td>
+          <td>{{ v.count_units }} шт</td>
+          <td>{{ v.base_region }}</td>
+          <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ v.comment or '—' }}</td>
+          <td>
+            <span class="badge badge-{% if v.status=='available' %}success{% else %}danger{% endif %}">
+              {% if v.status=='available' %}✅ Доступний{% else %}🔴 Зайнятий{% endif %}
+            </span>
+          </td>
+          <td style="white-space:nowrap;font-size:12px;color:var(--tm)">{{ (v.created_at or '')[:10] }}</td>
+          <td>
+            <div style="display:flex;gap:6px">
+              {% if v.status == 'available' %}
+              <form method="post" action="/logistics/vehicle/{{ v.id }}/status" style="display:inline">
+                <input type="hidden" name="status" value="busy">
+                <button class="btn btn-sm" style="background:#f59e0b;color:#fff" type="submit" title="Зайняти">🔴</button>
+              </form>
+              {% else %}
+              <form method="post" action="/logistics/vehicle/{{ v.id }}/status" style="display:inline">
+                <input type="hidden" name="status" value="available">
+                <button class="btn btn-sm" style="background:#22c55e;color:#fff" type="submit" title="Звільнити">✅</button>
+              </form>
+              {% endif %}
+              <a class="btn btn-sm" href="/logistics/vehicle/{{ v.id }}/edit">✏️</a>
+              <form method="post" action="/logistics/vehicle/{{ v.id }}/delete" style="display:inline" onsubmit="return confirm('Видалити авто #{{ v.id }}?')">
+                <button class="btn btn-sm btn-danger" type="submit">🗑</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<style>
+.badge { display:inline-block; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:600; }
+.badge-success { background:#d1fae5; color:#065f46; }
+.badge-danger { background:#fee2e2; color:#991b1b; }
+.badge-info { background:#dbeafe; color:#1e40af; }
+</style>
+{% endblock %}

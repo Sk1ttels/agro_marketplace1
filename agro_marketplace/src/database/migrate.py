@@ -163,6 +163,13 @@ def migrate(db_path: str, verbose: bool = True) -> None:
 
     conn = sqlite3.connect(db_path)
     try:
+        # PRAGMA для швидкодії та безпечної паралельної роботи
+        try:
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA synchronous=NORMAL")
+        except Exception:
+            pass
+
         cur = conn.cursor()
         total_added = 0
 
@@ -196,6 +203,29 @@ def migrate(db_path: str, verbose: bool = True) -> None:
         if verbose:
             print("\n📋 Таблиця settings:")
         _ensure_table(cur, "settings", SETTINGS_COLUMNS)
+
+
+        # Індекси для швидкої роботи (бот менше гальмує)
+        try:
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_users_telegram_id ON users(telegram_id)")
+        except Exception:
+            pass
+        try:
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_users_is_banned ON users(is_banned)")
+        except Exception:
+            pass
+        try:
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_lots_owner_user_id ON lots(owner_user_id)")
+        except Exception:
+            pass
+        try:
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_lots_status ON lots(status)")
+        except Exception:
+            pass
+        try:
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_ads_active ON advertisements(is_active)")
+        except Exception:
+            pass
 
         conn.commit()
 
