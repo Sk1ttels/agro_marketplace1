@@ -16,9 +16,5 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Validate railway.json
+      - name: Validate deploy config and scan repository for merge markers
         run: python scripts/validate_railway_json.py
-
-      - name: Ensure no merge markers in critical deploy files
-        run: |
-          ! rg -n "^<{7}|^={7}|^>{7}" railway.json Procfile wsgi.py
