@@ -1,5 +1,3 @@
-#!/usr/bin/<<<<<<< codex/add-user-authentication-feature-vxk0nz
-"""Validate deploy-critical files and fail fast on merge markers/invalid config."""
 from __future__ import annotations
 
 import json
@@ -88,7 +86,6 @@ if "return False" not in wsgi_raw:
 ensure_repo_no_markers()
 
 print("✅ Deploy files and repository are marker-free and mutually consistent")
-=======
 """Validate railway.json and fail fast on merge markers or invalid JSON."""
 from __future__ import annotations
 

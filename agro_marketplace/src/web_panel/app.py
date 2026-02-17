@@ -68,6 +68,19 @@ def create_app() -> Flask:
             "recent_lots": [],
         }
 
+    @app.context_processor
+    def inject_dashboard_defaults():
+        """Default context to prevent template crashes when route misses dashboard data."""
+        return {
+            "stats": {"users": 0, "lots": 0, "active_lots": 0, "banned": 0},
+            "weekly_data": {
+                "labels": ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Нд"],
+                "new_users": [0, 0, 0, 0, 0, 0, 0],
+                "new_lots": [0, 0, 0, 0, 0, 0, 0],
+            },
+            "recent_lots": [],
+        }
+
     # ============ ROUTES ============
 
     @app.get("/")

@@ -61,3 +61,19 @@ python scripts/validate_railway_json.py
 ```
 
 Then commit and push. This removes accidental `<<<<<<< ======= >>>>>>>` markers and restores canonical startup config.
+
+
+## Auto-restart / auto-redeploy on new code
+
+If you want Railway to redeploy itself automatically after each push to `main`, use the workflow:
+
+- `.github/workflows/railway-auto-redeploy.yml`
+
+Set GitHub repository secrets:
+
+- `RAILWAY_API_TOKEN` — Railway API token
+- `RAILWAY_SERVICE_ID` — service id to redeploy
+- `RAILWAY_ENVIRONMENT_ID` *(optional)* — environment id (e.g. production)
+
+After that, every push to `main`/`master` triggers Railway redeploy with the new code.
+Then commit and push. This removes accidental `<<<<<<< ======= >>>>>>>` markers and restores canonical startup config.

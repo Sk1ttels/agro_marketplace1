@@ -39,6 +39,11 @@ def _autostart_enabled() -> bool:
     if flag is not None:
         return flag.lower() in {"1", "true", "yes", "on"}
 
+    # Default: disabled to avoid accidental duplicate polling bots.
+    # Enable explicitly with ENABLE_WSGI_BOT_AUTOSTART=1 when needed.
+    return False
+
+
 def _acquire_lock() -> bool:
     global _LOCK_FD
 

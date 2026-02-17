@@ -853,6 +853,10 @@ body {
   gap: 12px;
 }
 
+.topbar-titles {
+  display: flex;
+  flex-direction: column;
+}
 .mobile-sidebar-toggle {
   display: none;
   width: 36px;
