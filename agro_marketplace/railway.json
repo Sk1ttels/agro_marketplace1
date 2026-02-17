@@ -5,6 +5,9 @@
     "nixpacksConfigPath": "nixpacks.toml"
   },
   "deploy": {
+codex/add-user-authentication-feature-9ekv34
     "startCommand": "ENABLE_WSGI_BOT_AUTOSTART=0 . /opt/venv/bin/activate && python run_unified.py"
+    "startCommand": ". /opt/venv/bin/activate && python run_unified.py"
+main
   }
 }
