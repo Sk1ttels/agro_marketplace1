@@ -294,6 +294,50 @@ async def set_ban(telegram_id: int, banned: int):
         await db.commit()
 
 
+async def ensure_favorites_table() -> None:
+    """Створює таблицю обраного, якщо її ще немає."""
+    async with aiosqlite.connect(DB_FILE) as db:
+        await db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS favorites (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                lot_id INTEGER NOT NULL,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(user_id, lot_id)
+            )
+            """
+        )
+        await db.commit()
+
+
+async def toggle_favorite_lot(user_id: int, lot_id: int) -> bool:
+    """Повертає True, якщо лот додано в обране; False, якщо прибрано."""
+    await ensure_favorites_table()
+
+    async with aiosqlite.connect(DB_FILE) as db:
+        cur = await db.execute(
+            "SELECT 1 FROM favorites WHERE user_id = ? AND lot_id = ?",
+            (user_id, lot_id),
+        )
+        exists = await cur.fetchone()
+
+        if exists:
+            await db.execute(
+                "DELETE FROM favorites WHERE user_id = ? AND lot_id = ?",
+                (user_id, lot_id),
+            )
+            await db.commit()
+            return False
+
+        await db.execute(
+            "INSERT OR IGNORE INTO favorites (user_id, lot_id) VALUES (?, ?)",
+            (user_id, lot_id),
+        )
+        await db.commit()
+        return True
+
+
 async def is_admin(telegram_id: int) -> bool:
     await ensure_user(telegram_id)
     u = await get_user_row(telegram_id)
@@ -1059,6 +1103,32 @@ async def counteroffers(message: Message):
         kb.adjust(2)
 
         await message.answer(text, reply_markup=kb.as_markup())
+
+
+@router.callback_query(F.data.startswith("fav:toggle:lot:"))
+async def favorite_toggle(cb: CallbackQuery):
+    """Додати/прибрати лот з обраного."""
+    parts = cb.data.split(":")
+    if len(parts) != 4:
+        await cb.answer("Невірний формат кнопки", show_alert=True)
+        return
+
+    try:
+        lot_id = int(parts[3])
+    except ValueError:
+        await cb.answer("Невірний ID лоту", show_alert=True)
+        return
+
+    u = await get_user_row(cb.from_user.id)
+    if not u:
+        await cb.answer("Спочатку завершіть реєстрацію", show_alert=True)
+        return
+
+    is_added = await toggle_favorite_lot(u["id"], lot_id)
+    if is_added:
+        await cb.answer("⭐ Додано в обране")
+    else:
+        await cb.answer("🗑 Прибрано з обраного")
 
 
 @router.message(F.text == "🔨 Торг")
