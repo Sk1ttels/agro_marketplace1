@@ -802,28 +802,23 @@ body {
   box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
 }
 
-.password-input-wrapper {
-  position: relative;
-  z-index: 2;
+.login-actions {
+  display: grid;
+  gap: 12px;
+  margin-top: 8px;
 }
 
-.password-toggle {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  color: var(--gray-500);
-  cursor: pointer;
-  padding: 8px;
+.btn-toggle-password {
+  width: 100%;
+  justify-content: center;
+  padding: 12px;
+  font-size: 15px;
 }
 
 .btn-login {
   width: 100%;
   padding: 14px;
   font-size: 16px;
-  margin-top: 8px;
   justify-content: center;
 }
 
