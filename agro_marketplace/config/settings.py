@@ -34,6 +34,9 @@ else:
 # КРИТИЧНО: Створюємо директорію data/ якщо не існує
 DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
+# Абсолютний шлях як рядок (для aiosqlite, sqlite3, міграцій)
+DB_FILE = str(DB_PATH)
+
 # Логування для діагностики
 print(f"✅ БД буде використовуватись: {DB_PATH}")
 print(f"✅ БД існує: {DB_PATH.exists()}")

@@ -1,218 +1,156 @@
 {% extends "base.html" %}
-
+{% block title %}Налаштування — Agro Admin{% endblock %}
 {% block page_title %}Налаштування{% endblock %}
-{% block page_description %}Конфігурація платформи та синхронізація з ботом{% endblock %}
+{% block page_desc %}Конфігурація платформи{% endblock %}
 
 {% block content %}
-<div class="settings-container">
-  <form method="POST" action="/settings/save" class="settings-form">
-    
-    <!-- Platform Settings -->
-    <div class="settings-section">
-      <div class="section-header">
-        <h2 class="section-title">
-          <i class="fas fa-cog"></i>
-          Основні налаштування
-        </h2>
-        <p class="section-description">Загальні параметри платформи</p>
+<form method="POST" action="/settings/save">
+<div class="grid-2" style="align-items:start">
+
+  <!-- LEFT: Platform settings -->
+  <div style="display:flex;flex-direction:column;gap:16px">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="fas fa-cog" style="color:var(--amber)"></i> Платформа</div>
       </div>
-
-      <div class="settings-grid">
-        <div class="setting-item">
-          <label for="platform_name" class="setting-label">
-            <i class="fas fa-tag"></i>
-            Назва платформи
-          </label>
-          <input 
-            type="text" 
-            id="platform_name" 
-            name="platform_name" 
-            class="form-control" 
-            value="{{ s['platform_name'] }}"
-            placeholder="Agro Marketplace"
-          >
-          <small class="setting-hint">Відображається в повідомленнях бота</small>
+      <div class="card-body" style="display:flex;flex-direction:column;gap:16px">
+        <div class="form-group">
+          <label class="form-label"><i class="fas fa-tag"></i> Назва платформи</label>
+          <input type="text" name="platform_name" class="form-control" value="{{ s['platform_name'] }}" placeholder="Agro Marketplace">
+          <div class="form-hint">Відображається в повідомленнях бота</div>
         </div>
-
-        <div class="setting-item">
-          <label for="currency" class="setting-label">
-            <i class="fas fa-money-bill-wave"></i>
-            Валюта
-          </label>
-          <select id="currency" name="currency" class="form-control">
-            <option value="UAH" {% if s['currency'] == 'UAH' %}selected{% endif %}>UAH - Гривня</option>
-            <option value="USD" {% if s['currency'] == 'USD' %}selected{% endif %}>USD - Долар</option>
-            <option value="EUR" {% if s['currency'] == 'EUR' %}selected{% endif %}>EUR - Євро</option>
+        <div class="form-group">
+          <label class="form-label"><i class="fas fa-money-bill-wave"></i> Валюта</label>
+          <select name="currency" class="form-control">
+            <option value="UAH" {% if s['currency']=='UAH' %}selected{% endif %}>UAH — Гривня</option>
+            <option value="USD" {% if s['currency']=='USD' %}selected{% endif %}>USD — Долар</option>
+            <option value="EUR" {% if s['currency']=='EUR' %}selected{% endif %}>EUR — Євро</option>
           </select>
-          <small class="setting-hint">Основна валюта для операцій</small>
         </div>
+        <div class="settings-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="form-group">
+            <label class="form-label"><i class="fas fa-arrow-down"></i> Мін. ціна</label>
+            <input type="number" name="min_price" class="form-control" value="{{ s['min_price'] }}" min="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label"><i class="fas fa-arrow-up"></i> Макс. ціна</label>
+            <input type="number" name="max_price" class="form-control" value="{{ s['max_price'] }}" min="0">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label"><i class="fas fa-balance-scale"></i> Приклад об'єму</label>
+          <input type="text" name="example_amount" class="form-control" value="{{ s['example_amount'] }}" placeholder="25т">
+          <div class="form-hint">Підказка для користувачів бота</div>
+        </div>
+      </div>
+    </div>
 
-        <div class="setting-item">
-          <label for="min_price" class="setting-label">
-            <i class="fas fa-arrow-down"></i>
-            Мінімальна ціна
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="fab fa-telegram" style="color:var(--sky)"></i> Telegram Bot</div>
+      </div>
+      <div class="card-body">
+        <div class="toggle-wrap">
+          <div>
+            <div class="tg-label">Автоматична модерація</div>
+            <div class="tg-hint">Автоматична перевірка нових лотів</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" name="auto_moderation" {% if s['auto_moderation']=='1' %}checked{% endif %}>
+            <span class="toggle-track"></span>
           </label>
-          <input 
-            type="number" 
-            id="min_price" 
-            name="min_price" 
-            class="form-control" 
-            value="{{ s['min_price'] }}"
-            min="0"
-          >
-          <small class="setting-hint">Мінімальна ціна для лотів</small>
         </div>
-
-        <div class="setting-item">
-          <label for="max_price" class="setting-label">
-            <i class="fas fa-arrow-up"></i>
-            Максимальна ціна
+        <div class="toggle-wrap">
+          <div>
+            <div class="tg-label">Сповіщення адміну</div>
+            <div class="tg-hint">Сповіщати про нові реєстрації</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" checked>
+            <span class="toggle-track"></span>
           </label>
-          <input 
-            type="number" 
-            id="max_price" 
-            name="max_price" 
-            class="form-control" 
-            value="{{ s['max_price'] }}"
-            min="0"
-          >
-          <small class="setting-hint">Максимальна ціна для лотів</small>
-        </div>
-
-        <div class="setting-item">
-          <label for="example_amount" class="setting-label">
-            <i class="fas fa-balance-scale"></i>
-            Приклад об'єму
-          </label>
-          <input 
-            type="text" 
-            id="example_amount" 
-            name="example_amount" 
-            class="form-control" 
-            value="{{ s['example_amount'] }}"
-            placeholder="25т"
-          >
-          <small class="setting-hint">Приклад для користувачів (напр. "25т")</small>
         </div>
       </div>
     </div>
+  </div>
 
-    <!-- Bot Settings -->
-    <div class="settings-section">
-      <div class="section-header">
-        <h2 class="section-title">
-          <i class="fas fa-robot"></i>
-          Налаштування Telegram Bot
-        </h2>
-        <p class="section-description">Параметри взаємодії з ботом</p>
+  <!-- RIGHT: Status + save -->
+  <div style="display:flex;flex-direction:column;gap:16px">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="fas fa-signal" style="color:var(--emerald)"></i> Статус системи</div>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="checkStatus()"><i class="fas fa-sync-alt"></i></button>
       </div>
-
-      <div class="settings-grid">
-        <div class="setting-item setting-item-wide">
-          <div class="setting-toggle">
-            <div>
-              <label for="auto_moderation" class="setting-label">
-                <i class="fas fa-shield-alt"></i>
-                Автоматична модерація
-              </label>
-              <small class="setting-hint">Автоматична перевірка нових лотів</small>
-            </div>
-            <label class="toggle-switch">
-              <input 
-                type="checkbox" 
-                id="auto_moderation" 
-                name="auto_moderation" 
-                {% if s['auto_moderation'] == '1' %}checked{% endif %}
-              >
-              <span class="toggle-slider"></span>
-            </label>
+      <div class="card-body" style="display:flex;flex-direction:column;gap:0">
+        <div class="kv-list">
+          <div class="kv-row">
+            <span class="kv-key"><i class="fas fa-database" style="margin-right:6px"></i>База даних</span>
+            <span class="badge b-active" id="db-status"><span class="bdot"></span>Перевірка...</span>
           </div>
-        </div>
-
-        <div class="setting-item setting-item-wide">
-          <div class="setting-toggle">
-            <div>
-              <label class="setting-label">
-                <i class="fas fa-bell"></i>
-                Сповіщення в Telegram
-              </label>
-              <small class="setting-hint">Отримувати сповіщення про нові події</small>
-            </div>
-            <label class="toggle-switch">
-              <input type="checkbox" checked>
-              <span class="toggle-slider"></span>
-            </label>
+          <div class="kv-row">
+            <span class="kv-key"><i class="fas fa-hdd" style="margin-right:6px"></i>Розмір БД</span>
+            <span class="kv-val" id="db-size">—</span>
+          </div>
+          <div class="kv-row">
+            <span class="kv-key"><i class="fas fa-users" style="margin-right:6px"></i>Юзерів у БД</span>
+            <span class="kv-val" id="db-users">—</span>
+          </div>
+          <div class="kv-row">
+            <span class="kv-key"><i class="fas fa-box" style="margin-right:6px"></i>Лотів у БД</span>
+            <span class="kv-val" id="db-lots">—</span>
+          </div>
+          <div class="kv-row">
+            <span class="kv-key"><i class="fas fa-sync-alt" style="margin-right:6px"></i>Синхронізація</span>
+            <span class="badge b-active" id="sync-stat"><span class="bdot"></span>Активна</span>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Sync Status -->
-    <div class="settings-section">
-      <div class="section-header">
-        <h2 class="section-title">
-          <i class="fas fa-sync-alt"></i>
-          Статус синхронізації
-        </h2>
-        <p class="section-description">Інформація про підключення до бота</p>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="fas fa-save" style="color:var(--amber)"></i> Зберегти</div>
       </div>
-
-      <div class="sync-status-card">
-        <div class="sync-item">
-          <div class="sync-icon sync-icon-success">
-            <i class="fas fa-database"></i>
-          </div>
-          <div class="sync-content">
-            <h4>База даних</h4>
-            <p>Синхронізовано зараз</p>
-            <span class="sync-time">
-              <i class="far fa-clock"></i>
-              Оновлено щойно
-            </span>
-          </div>
-        </div>
-
-        <div class="sync-item">
-          <div class="sync-icon sync-icon-success">
-            <i class="fab fa-telegram"></i>
-          </div>
-          <div class="sync-content">
-            <h4>Telegram Bot</h4>
-            <p>Підключено та працює</p>
-            <span class="sync-time">
-              <i class="fas fa-signal"></i>
-              Статус: Online
-            </span>
-          </div>
-        </div>
-
-        <div class="sync-item">
-          <div class="sync-icon sync-icon-success">
-            <i class="fas fa-server"></i>
-          </div>
-          <div class="sync-content">
-            <h4>Сервер</h4>
-            <p>Працює стабільно</p>
-            <span class="sync-time">
-              <i class="fas fa-check-circle"></i>
-              Uptime: 99.9%
-            </span>
-          </div>
-        </div>
+      <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+        <p style="font-size:13px;color:var(--tm)">Зміни вступлять в силу одразу після збереження.</p>
+        <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center">
+          <i class="fas fa-save"></i> Зберегти налаштування
+        </button>
+        <a href="/settings" class="btn btn-secondary" style="width:100%;justify-content:center">
+          <i class="fas fa-times"></i> Скасувати
+        </a>
       </div>
     </div>
 
-    <!-- Save Button -->
-    <div class="settings-actions">
-      <button type="button" class="btn btn-secondary" onclick="window.location.reload()">
-        <i class="fas fa-times"></i>
-        Скасувати
-      </button>
-      <button type="submit" class="btn btn-primary">
-        <i class="fas fa-save"></i>
-        Зберегти налаштування
-      </button>
+    <div class="card">
+      <div class="card-header"><div class="card-title"><i class="fas fa-tools" style="color:var(--ts)"></i> Інструменти</div></div>
+      <div class="card-body" style="display:flex;flex-direction:column;gap:8px">
+        <a href="/api/db-check" target="_blank" class="btn btn-secondary btn-sm" style="justify-content:center"><i class="fas fa-database"></i> Перевірити БД</a>
+        <a href="/api/ping" target="_blank" class="btn btn-secondary btn-sm" style="justify-content:center"><i class="fas fa-heartbeat"></i> Ping сервер</a>
+        <a href="/sync" class="btn btn-secondary btn-sm" style="justify-content:center"><i class="fas fa-sync-alt"></i> Синхронізація</a>
+      </div>
     </div>
-  </form>
+  </div>
+
 </div>
+</form>
+
+<script>
+async function checkStatus() {
+  try {
+    const r = await fetch('/api/db-check');
+    const d = await r.json();
+    document.getElementById('db-status').innerHTML = '<span class="bdot"></span>Online';
+    document.getElementById('db-status').className = 'badge b-active';
+    document.getElementById('db-size').textContent = d.db_size ? (d.db_size / 1024).toFixed(1) + ' KB' : '—';
+    document.getElementById('db-users').textContent = d.tables?.users ?? '—';
+    document.getElementById('db-lots').textContent  = d.tables?.lots  ?? '—';
+  } catch(e) {
+    document.getElementById('db-status').innerHTML = '<span class="bdot" style="background:var(--rose)"></span>Error';
+    document.getElementById('db-status').className = 'badge b-banned';
+  }
+}
+checkStatus();
+setInterval(checkStatus, 20000);
+</script>
 {% endblock %}

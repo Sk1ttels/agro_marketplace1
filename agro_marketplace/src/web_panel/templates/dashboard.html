@@ -1,269 +1,281 @@
 {% extends "base.html" %}
-
+{% block title %}Дашборд — Agro Admin{% endblock %}
 {% block page_title %}Дашборд{% endblock %}
-{% block page_description %}Огляд статистики та активності платформи{% endblock %}
+{% block page_desc %}Огляд платформи в реальному часі{% endblock %}
 
 {% block content %}
-<div class="dashboard-container">
-  <!-- Stats Cards -->
-  <div class="stats-grid">
-    <div class="stat-card stat-primary">
-      <div class="stat-icon">
-        <i class="fas fa-users"></i>
-      </div>
-      <div class="stat-content">
-        <div class="stat-value">{{ (stats | default({})).get("users", 0) }}</div>
-        <div class="stat-label">Користувачів</div>
-      </div>
-      <div class="stat-trend trend-up">
-        <i class="fas fa-arrow-up"></i>
-        <span>12%</span>
-      </div>
+<!-- Stats -->
+<div class="stats-grid">
+  <div class="stat-card amber">
+    <div class="stat-icon"><i class="fas fa-users"></i></div>
+    <div>
+      <div class="stat-label">Користувачів</div>
+      <div class="stat-value" id="sv-users">{{ stats.users }}</div>
+      <div class="stat-sub">в системі</div>
     </div>
-
-    <div class="stat-card stat-success">
-      <div class="stat-icon">
-        <i class="fas fa-box"></i>
-      </div>
-      <div class="stat-content">
-        <div class="stat-value">{{ (stats | default({})).get("lots", 0) }}</div>
-        <div class="stat-label">Всього лотів</div>
-      </div>
-      <div class="stat-trend trend-up">
-        <i class="fas fa-arrow-up"></i>
-        <span>8%</span>
-      </div>
+  </div>
+  <div class="stat-card emerald">
+    <div class="stat-icon"><i class="fas fa-box"></i></div>
+    <div>
+      <div class="stat-label">Всього лотів</div>
+      <div class="stat-value" id="sv-lots">{{ stats.lots }}</div>
+      <div class="stat-sub">створено</div>
     </div>
-
-    <div class="stat-card stat-info">
-      <div class="stat-icon">
-        <i class="fas fa-check-circle"></i>
-      </div>
-      <div class="stat-content">
-        <div class="stat-value">{{ (stats | default({})).get("active_lots", 0) }}</div>
-        <div class="stat-label">Активних лотів</div>
-      </div>
-      <div class="stat-trend trend-up">
-        <i class="fas fa-arrow-up"></i>
-        <span>5%</span>
-      </div>
+  </div>
+  <div class="stat-card sky">
+    <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+    <div>
+      <div class="stat-label">Активних лотів</div>
+      <div class="stat-value" id="sv-active">{{ stats.active_lots }}</div>
+      <div class="stat-sub">зараз торгується</div>
     </div>
+  </div>
+  <div class="stat-card rose">
+    <div class="stat-icon"><i class="fas fa-ban"></i></div>
+    <div>
+      <div class="stat-label">Заблоковано</div>
+      <div class="stat-value" id="sv-banned">{{ stats.banned }}</div>
+      <div class="stat-sub">користувачів</div>
+    </div>
+  </div>
+</div>
 
-    <div class="stat-card stat-warning">
-      <div class="stat-icon">
-        <i class="fas fa-ban"></i>
-      </div>
-      <div class="stat-content">
-        <div class="stat-value">{{ (stats | default({})).get("banned", 0) }}</div>
-        <div class="stat-label">Заблоковано</div>
-      </div>
-      <div class="stat-trend trend-down">
-        <i class="fas fa-arrow-down"></i>
-        <span>3%</span>
-      </div>
+<!-- Charts row -->
+<div class="grid-2">
+  <!-- Activity chart -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="fas fa-chart-area" style="color:var(--emerald)"></i> Активність за 7 днів</div>
+      <button class="btn btn-secondary btn-sm" onclick="loadStats()"><i class="fas fa-sync-alt"></i> Оновити</button>
+    </div>
+    <div class="card-body">
+      <canvas id="actChart" height="220"></canvas>
     </div>
   </div>
 
-  <!-- Charts and Recent Activity -->
-  <div class="dashboard-grid">
-    <!-- Activity Chart -->
-    <div class="dashboard-card">
-      <div class="card-header">
-        <h3 class="card-title">
-          <i class="fas fa-chart-area"></i>
-          Активність за тиждень
-        </h3>
-        <div class="card-actions">
-          <button class="btn-icon" title="Оновити">
-            <i class="fas fa-sync-alt"></i>
-          </button>
-        </div>
-      </div>
-      <div class="card-body">
-        <canvas id="activityChart" height="250"></canvas>
-      </div>
+  <!-- Recent lots -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="fas fa-clock" style="color:var(--amber)"></i> Останні лоти</div>
+      <a href="/lots" class="btn btn-secondary btn-sm"><i class="fas fa-arrow-right"></i> Всі</a>
     </div>
-
-    <!-- Recent Lots -->
-    <div class="dashboard-card">
-      <div class="card-header">
-        <h3 class="card-title">
-          <i class="fas fa-clock"></i>
-          Останні лоти
-        </h3>
-        <a href="/lots" class="btn-text">
-          Показати всі <i class="fas fa-arrow-right"></i>
-        </a>
-      </div>
-      <div class="card-body">
-        <div class="recent-items">
-          {% if recent_lots %}
-            {% for lot in recent_lots %}
-            <div class="recent-item">
-              <div class="item-icon item-icon-{{ 'success' if loop.index0 == 0 else 'info' if loop.index0 == 1 else 'warning' if loop.index0 == 2 else 'danger' }}">
-                <i class="fas fa-wheat-awn"></i>
-              </div>
-              <div class="item-content">
-                <div class="item-title">{{ lot['crop'] or 'Культура' }}</div>
-                <div class="item-meta">{{ lot['volume'] or '0' }}т • {{ lot['region'] or 'Регіон' }}</div>
-              </div>
-              <div class="item-badge badge-{{ 'success' if lot['status'] == 'active' else 'warning' if lot['status'] == 'pending' else 'danger' }}">
-                {{ 'Активний' if lot['status'] == 'active' else 'Очікує' if lot['status'] == 'pending' else 'Закрито' }}
-              </div>
-            </div>
-            {% endfor %}
-          {% else %}
+    <div class="card-body" style="padding:8px 20px">
+      <div class="recent-list">
+        {% if recent_lots %}
+          {% for lot in recent_lots %}
+          {% set colors = ['amber','emerald','sky','rose'] %}
           <div class="recent-item">
-            <div class="item-icon item-icon-success">
-              <i class="fas fa-wheat-awn"></i>
+            <div class="ri-icon {{ colors[loop.index0 % 4] }}"><i class="fas fa-seedling"></i></div>
+            <div style="flex:1;min-width:0">
+              <div class="ri-title">{{ lot['crop'] or 'Культура' }}</div>
+              <div class="ri-sub">{{ lot['region'] or '—' }} · {{ lot['volume'] or lot['volume_tons'] or 0 }}т</div>
             </div>
-            <div class="item-content">
-              <div class="item-title">Пшениця озима</div>
-              <div class="item-meta">25т • Київська область</div>
-            </div>
-            <div class="item-badge badge-success">Активний</div>
+            {% if lot['status'] == 'active' %}
+              <span class="badge b-active"><span class="bdot"></span>Активний</span>
+            {% elif lot['status'] == 'pending' %}
+              <span class="badge b-pending"><span class="bdot"></span>Очікує</span>
+            {% else %}
+              <span class="badge b-closed">Закрито</span>
+            {% endif %}
           </div>
-          <div class="recent-item">
-            <div class="item-icon item-icon-info">
-              <i class="fas fa-corn"></i>
-            </div>
-            <div class="item-content">
-              <div class="item-title">Кукурудза</div>
-              <div class="item-meta">50т • Полтавська область</div>
-            </div>
-            <div class="item-badge badge-success">Активний</div>
+          {% endfor %}
+        {% else %}
+          <div class="empty" style="padding:32px 0">
+            <div class="empty-icon"><i class="fas fa-box-open"></i></div>
+            <div class="empty-desc">Лотів ще немає</div>
           </div>
-          <div class="recent-item">
-            <div class="item-icon item-icon-warning">
-              <i class="fas fa-seedling"></i>
-            </div>
-            <div class="item-content">
-              <div class="item-title">Соняшник</div>
-              <div class="item-meta">30т • Вінницька область</div>
-            </div>
-            <div class="item-badge badge-warning">Очікує</div>
-          </div>
-          <div class="recent-item">
-            <div class="item-icon item-icon-danger">
-              <i class="fas fa-leaf"></i>
-            </div>
-            <div class="item-content">
-              <div class="item-title">Ячмінь</div>
-              <div class="item-meta">20т • Черкаська область</div>
-            </div>
-            <div class="item-badge badge-danger">Закрито</div>
-          </div>
-          {% endif %}
-        </div>
+        {% endif %}
       </div>
     </div>
   </div>
+</div>
 
-  <!-- Additional Info Cards -->
-  <div class="info-grid">
-    <div class="info-card">
-      <div class="info-icon">
-        <i class="fas fa-telegram"></i>
-      </div>
-      <div class="info-content">
-        <div class="info-title">Telegram Bot</div>
-        <div class="info-value">Online</div>
-        <div class="info-status status-online">
-          <span class="status-dot"></span>
-          Працює
-        </div>
-      </div>
+<!-- Bottom row -->
+<div class="grid-3">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="fas fa-chart-pie" style="color:var(--sky)"></i> Типи лотів</div>
     </div>
-
-    <div class="info-card">
-      <div class="info-icon">
-        <i class="fas fa-database"></i>
-      </div>
-      <div class="info-content">
-        <div class="info-title">База даних</div>
-        <div class="info-value">Синхронізовано</div>
-        <div class="info-status status-online">
-          <span class="status-dot"></span>
-          Актуальна
-        </div>
-      </div>
+    <div class="card-body" style="display:flex;align-items:center;justify-content:center">
+      <canvas id="typeChart" width="200" height="180"></canvas>
     </div>
+  </div>
 
-    <div class="info-card">
-      <div class="info-icon">
-        <i class="fas fa-server"></i>
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="fas fa-signal" style="color:var(--emerald)"></i> Статус системи</div>
+    </div>
+    <div class="card-body" style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:13.5px;color:var(--ts)"><i class="fas fa-database" style="margin-right:8px;color:var(--tm)"></i>База даних</span>
+        <span class="badge b-active"><span class="bdot"></span>Online</span>
       </div>
-      <div class="info-content">
-        <div class="info-title">Сервер</div>
-        <div class="info-value">Стабільний</div>
-        <div class="info-status status-online">
-          <span class="status-dot"></span>
-          99.9% uptime
-        </div>
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:13.5px;color:var(--ts)"><i class="fab fa-telegram" style="margin-right:8px;color:var(--tm)"></i>Telegram Bot</span>
+        <span class="badge b-active" id="botStatus"><span class="bdot"></span>Перевірка...</span>
       </div>
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:13.5px;color:var(--ts)"><i class="fas fa-sync-alt" style="margin-right:8px;color:var(--tm)"></i>Синхронізація</span>
+        <span class="badge b-active" id="syncStatus2"><span class="bdot"></span>Активна</span>
+      </div>
+      <div class="divider"></div>
+      <a href="/api/db-check" target="_blank" class="btn btn-secondary btn-sm" style="width:100%;justify-content:center">
+        <i class="fas fa-info-circle"></i> Деталі БД
+      </a>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="fas fa-bolt" style="color:var(--amber)"></i> Швидкі дії</div>
+    </div>
+    <div class="card-body" style="display:flex;flex-direction:column;gap:8px">
+      <a href="/users" class="btn btn-secondary" style="justify-content:center"><i class="fas fa-users"></i> Всі користувачі</a>
+      <a href="/lots?status=active" class="btn btn-secondary" style="justify-content:center"><i class="fas fa-check-circle"></i> Активні лоти</a>
+      <a href="/users/export" class="btn btn-secondary" style="justify-content:center"><i class="fas fa-download"></i> Експорт users.csv</a>
+      <a href="/lots/export" class="btn btn-secondary" style="justify-content:center"><i class="fas fa-download"></i> Експорт lots.csv</a>
     </div>
   </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
-// Activity Chart з реальними даними
-const ctx = document.getElementById('activityChart');
-if (ctx) {
-  const weeklyData = {{ (weekly_data | default({"labels": ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Нд"], "new_users": [0,0,0,0,0,0,0], "new_lots": [0,0,0,0,0,0,0]})) | tojson | safe }};
-  
-  new Chart(ctx, {
+// ── Real data from server ──
+const weeklyData = {{ weekly_data | tojson | safe }};
+
+Chart.defaults.color = '#8b949e';
+Chart.defaults.borderColor = 'rgba(255,255,255,0.06)';
+Chart.defaults.font.family = "'DM Sans', sans-serif";
+
+// Activity line chart
+const actCtx = document.getElementById('actChart');
+if (actCtx) {
+  new Chart(actCtx, {
     type: 'line',
     data: {
-      labels: weeklyData.labels || ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд'],
-      datasets: [{
-        label: 'Нові лоти',
-        data: weeklyData.new_lots || [0, 0, 0, 0, 0, 0, 0],
-        borderColor: '#10b981',
-        backgroundColor: 'rgba(16, 185, 129, 0.1)',
-        tension: 0.4,
-        fill: true
-      }, {
-        label: 'Нові користувачі',
-        data: weeklyData.new_users || [0, 0, 0, 0, 0, 0, 0],
-        borderColor: '#3b82f6',
-        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-        tension: 0.4,
-        fill: true
-      }]
+      labels: weeklyData.labels || ['Пн','Вт','Ср','Чт','Пт','Сб','Нд'],
+      datasets: [
+        {
+          label: 'Нові лоти',
+          data: weeklyData.new_lots || [0,0,0,0,0,0,0],
+          borderColor: '#f59e0b',
+          backgroundColor: 'rgba(245,158,11,0.08)',
+          tension: 0.4,
+          fill: true,
+          pointBackgroundColor: '#f59e0b',
+          pointRadius: 4,
+          pointHoverRadius: 6,
+        },
+        {
+          label: 'Нові користувачі',
+          data: weeklyData.new_users || [0,0,0,0,0,0,0],
+          borderColor: '#10b981',
+          backgroundColor: 'rgba(16,185,129,0.08)',
+          tension: 0.4,
+          fill: true,
+          pointBackgroundColor: '#10b981',
+          pointRadius: 4,
+          pointHoverRadius: 6,
+        }
+      ]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
       plugins: {
-        legend: {
-          display: true,
-          position: 'top',
-        },
+        legend: { position: 'top', labels: { boxWidth: 12, padding: 16 } },
         tooltip: {
-          mode: 'index',
-          intersect: false,
+          backgroundColor: '#1c2230',
+          borderColor: 'rgba(255,255,255,0.08)',
+          borderWidth: 1,
+          padding: 10,
         }
       },
       scales: {
         y: {
           beginAtZero: true,
-          grid: {
-            color: 'rgba(0, 0, 0, 0.05)'
-          },
-          ticks: {
-            stepSize: 1,
-            precision: 0
-          }
+          ticks: { stepSize: 1, precision: 0 },
+          grid: { color: 'rgba(255,255,255,0.04)' }
         },
-        x: {
-          grid: {
-            display: false
-          }
-        }
+        x: { grid: { display: false } }
       }
     }
   });
 }
+
+// Donut chart for lot types
+const typeCtx = document.getElementById('typeChart');
+if (typeCtx) {
+  const sellCount = {{ stats.active_lots }};
+  const closedCount = {{ stats.lots - stats.active_lots if stats.lots > stats.active_lots else 0 }};
+  const bannedCount = {{ stats.banned }};
+  new Chart(typeCtx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Активні', 'Закриті', 'Забанені users'],
+      datasets: [{
+        data: [sellCount || 0, closedCount || 0, bannedCount || 1],
+        backgroundColor: ['rgba(16,185,129,0.8)', 'rgba(255,255,255,0.1)', 'rgba(244,63,94,0.6)'],
+        borderColor: ['#10b981','rgba(255,255,255,0.15)','#f43f5e'],
+        borderWidth: 1.5,
+        hoverOffset: 4,
+      }]
+    },
+    options: {
+      cutout: '70%',
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 10, padding: 12, font: { size: 11 } } },
+        tooltip: { backgroundColor: '#1c2230', borderColor: 'rgba(255,255,255,0.08)', borderWidth: 1 }
+      }
+    }
+  });
+}
+
+// Live stats update every 30s
+async function loadStats() {
+  try {
+    const r = await fetch('/api/db-check');
+    const d = await r.json();
+    if (!d.tables) return;
+    const users = d.tables.users || {{ stats.users }};
+    const lots  = d.tables.lots  || {{ stats.lots }};
+    const su = document.getElementById('sv-users');
+    const sl = document.getElementById('sv-lots');
+    if (su) animCount(su, parseInt(su.textContent), users);
+    if (sl) animCount(sl, parseInt(sl.textContent), lots);
+  } catch(e) {}
+}
+
+function animCount(el, from, to) {
+  if (from === to) return;
+  const dur = 600, start = performance.now();
+  const tick = now => {
+    const p = Math.min((now - start) / dur, 1);
+    el.textContent = Math.round(from + (to - from) * p);
+    if (p < 1) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+
+setInterval(loadStats, 30000);
+
+// Check bot/sync status
+async function checkStatus() {
+  try {
+    const r = await fetch('/api/ping');
+    const d = await r.json();
+    const el = document.getElementById('botStatus');
+    if(el && d.status === 'ok') {
+      el.innerHTML = '<span class="bdot"></span>Online';
+      el.className = 'badge b-active';
+    }
+  } catch(e) {
+    const el = document.getElementById('botStatus');
+    if(el) { el.innerHTML = '<span class="bdot" style="background:var(--rose)"></span>Offline'; el.className = 'badge b-banned'; }
+  }
+}
+checkStatus();
+setInterval(checkStatus, 15000);
 </script>
 {% endblock %}

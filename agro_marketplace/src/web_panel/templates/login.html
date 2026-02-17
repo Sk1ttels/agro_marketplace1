@@ -1,107 +1,46 @@
-{% extends "base.html" %}
-
-{% block content_login %}
-<div class="login-container">
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Вхід — Agro Admin</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=4">
+</head>
+<body>
+<div class="login-page">
   <div class="login-card">
-    <div class="login-header">
-      <div class="login-logo">
-        <div class="logo-circle">
-          <i class="fas fa-seedling"></i>
-        </div>
-      </div>
-      <h1 class="login-title">Agro Marketplace</h1>
-      <p class="login-subtitle">Адміністративна панель</p>
-    </div>
+    <div class="login-logo">🌾</div>
+    <div class="login-title">Agro Marketplace</div>
+    <div class="login-sub">Панель адміністратора</div>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        {% for category, message in messages %}
-          <div class="alert alert-{{ category }} alert-modern" role="alert">
-            <i class="fas fa-exclamation-circle"></i>
-            <span>{{ message }}</span>
-          </div>
-        {% endfor %}
-      {% endif %}
+      {% for cat, msg in messages %}
+      <div class="alert alert-{{ cat }}" style="margin-bottom:16px">
+        <i class="fas fa-exclamation-circle"></i> {{ msg }}
+      </div>
+      {% endfor %}
     {% endwith %}
 
     <form method="POST" action="/login" class="login-form">
       <div class="form-group">
-        <label for="username" class="form-label">
-          <i class="fas fa-user"></i>
-          Логін
-        </label>
-        <input 
-          type="text" 
-          id="username" 
-          name="username" 
-          class="form-control" 
-          placeholder="Введіть ваш логін"
-          required 
-          autofocus
-        >
+        <label class="form-label"><i class="fas fa-user" style="margin-right:6px;color:var(--tm)"></i>Логін</label>
+        <input type="text" name="username" class="form-control" placeholder="Введіть логін" required autofocus>
       </div>
-
       <div class="form-group">
-        <label for="password" class="form-label">
-          <i class="fas fa-lock"></i>
-          Пароль
-        </label>
-        <input
-          type="password"
-          id="password"
-          name="password"
-          class="form-control"
-          placeholder="Введіть пароль"
-          required
-        >
+        <label class="form-label"><i class="fas fa-lock" style="margin-right:6px;color:var(--tm)"></i>Пароль</label>
+        <input type="password" name="password" id="pwd" class="form-control" placeholder="Введіть пароль" required>
       </div>
-
-      <div class="login-actions">
-        <button type="button" class="btn btn-secondary btn-toggle-password" onclick="togglePassword()">
-          <i class="fas fa-eye" id="passwordIcon"></i>
-          <span id="passwordToggleText">Показати пароль</span>
-        </button>
-
-        <button type="submit" class="btn btn-primary btn-login">
-          <span>Увійти</span>
-          <i class="fas fa-arrow-right"></i>
-        </button>
-      </div>
+      <button type="submit" class="login-submit">
+        <i class="fas fa-arrow-right" style="margin-right:8px"></i>Увійти
+      </button>
     </form>
 
     <div class="login-footer">
-      <p class="footer-text">
-        <i class="fas fa-shield-alt"></i>
-        Захищено та синхронізовано з Telegram Bot
-      </p>
+      <i class="fas fa-shield-alt" style="margin-right:4px"></i>
+      Захищено · Agro Marketplace Admin
     </div>
   </div>
-
-  <div class="login-background">
-    <div class="bg-shape shape-1"></div>
-    <div class="bg-shape shape-2"></div>
-    <div class="bg-shape shape-3"></div>
-  </div>
 </div>
-
-<script>
-function togglePassword() {
-  const passwordInput = document.getElementById('password');
-  const passwordIcon = document.getElementById('passwordIcon');
-  
-  const toggleText = document.getElementById('passwordToggleText');
-
-  if (passwordInput.type === 'password') {
-    passwordInput.type = 'text';
-    passwordIcon.classList.remove('fa-eye');
-    passwordIcon.classList.add('fa-eye-slash');
-    if (toggleText) toggleText.textContent = 'Сховати пароль';
-  } else {
-    passwordInput.type = 'password';
-    passwordIcon.classList.remove('fa-eye-slash');
-    passwordIcon.classList.add('fa-eye');
-    if (toggleText) toggleText.textContent = 'Показати пароль';
-  }
-}
-</script>
-{% endblock %}
+</body>
+</html>

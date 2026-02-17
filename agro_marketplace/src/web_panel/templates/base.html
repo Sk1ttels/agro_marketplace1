@@ -2,231 +2,147 @@
 <html lang="uk">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{ title or "Agro Marketplace Admin" }}</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{% block title %}Agro Admin{% endblock %}</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css', v='20260217g') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=4">
 </head>
 <body>
 
-  {% if current_user.is_authenticated %}
-  <div class="app-container">
-    <!-- Sidebar -->
-    <aside class="sidebar" id="sidebar">
-      <div class="sidebar-header">
-        <div class="logo-container">
-          <div class="logo-icon">
-            <i class="fas fa-seedling"></i>
-          </div>
-          <div class="logo-text">
-            <div class="logo-title">Agro Market</div>
-            <div class="logo-subtitle">Admin Panel</div>
-          </div>
-        </div>
-        <button class="sidebar-toggle js-sidebar-toggle" id="sidebarToggle">
-          <i class="fas fa-bars"></i>
-        </button>
+{% if current_user.is_authenticated %}
+<div class="app-wrap">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-icon">🌾</div>
+      <div>
+        <div class="brand-name">Agro Market</div>
+        <div class="brand-sub">Admin Panel</div>
       </div>
-
-      <nav class="sidebar-nav">
-        <a href="/dashboard" class="nav-item {% if request.path.startswith('/dashboard') %}active{% endif %}">
-          <div class="nav-icon">
-            <i class="fas fa-chart-line"></i>
-          </div>
-          <span class="nav-text">Дашборд</span>
-          <div class="nav-indicator"></div>
-        </a>
-        <a href="/users" class="nav-item {% if request.path.startswith('/users') %}active{% endif %}">
-          <div class="nav-icon">
-            <i class="fas fa-users"></i>
-          </div>
-          <span class="nav-text">Користувачі</span>
-          <div class="nav-indicator"></div>
-        </a>
-        <a href="/lots" class="nav-item {% if request.path.startswith('/lots') %}active{% endif %}">
-          <div class="nav-icon">
-            <i class="fas fa-box"></i>
-          </div>
-          <span class="nav-text">Лоти</span>
-          <div class="nav-indicator"></div>
-        </a>
-        <a href="/contacts" class="nav-item {% if request.path.startswith('/contacts') %}active{% endif %}">
-          <div class="nav-icon">
-            <i class="fas fa-address-book"></i>
-          </div>
-          <span class="nav-text">Контакти</span>
-          <div class="nav-indicator"></div>
-        </a>
-        <a href="/advertisements" class="nav-item {% if request.path.startswith('/advertisements') %}active{% endif %}">
-          <div class="nav-icon">
-            <i class="fas fa-ad"></i>
-          </div>
-          <span class="nav-text">Реклама</span>
-          <div class="nav-indicator"></div>
-        </a>
-        <a href="/sync" class="nav-item {% if request.path.startswith('/sync') %}active{% endif %}">
-          <div class="nav-icon">
-            <i class="bi bi-arrow-repeat"></i>
-          </div>
-          <span class="nav-text">Синхронізація</span>
-          <span class="badge bg-info ms-auto" id="syncBadge" style="display:none;">0</span>
-          <div class="nav-indicator"></div>
-        </a>
-        <a href="/settings" class="nav-item {% if request.path.startswith('/settings') %}active{% endif %}">
-          <div class="nav-icon">
-            <i class="fas fa-cog"></i>
-          </div>
-          <span class="nav-text">Налаштування</span>
-          <div class="nav-indicator"></div>
-        </a>
-      </nav>
-
-      <div class="sidebar-footer">
-        <div class="user-card">
-          <div class="user-avatar">
-            <i class="fas fa-user"></i>
-          </div>
-          <div class="user-info">
-            <div class="user-name">{{ current_user.id }}</div>
-            <div class="user-role">Адміністратор</div>
-          </div>
-          <a href="/logout" class="logout-btn" title="Вийти">
-            <i class="fas fa-sign-out-alt"></i>
-          </a>
-        </div>
-      </div>
-    </aside>
-
-    <!-- Main Content -->
-    <main class="main-content" id="mainContent">
-      <!-- Top Bar -->
-      <header class="topbar">
-        <div class="topbar-left">
-          <button class="mobile-sidebar-toggle js-sidebar-toggle" type="button" aria-label="Відкрити меню">
-            <i class="fas fa-bars"></i>
-          </button>
-          <div class="topbar-titles">
-            <h1 class="page-title">{% block page_title %}{% endblock %}</h1>
-            <p class="page-description">{% block page_description %}{% endblock %}</p>
-          </div>
-        </div>
-        <div class="topbar-right">
-          <div class="topbar-actions">
-            <button class="topbar-btn" id="notificationBtn">
-              <i class="fas fa-bell"></i>
-              <span class="notification-badge">3</span>
-            </button>
-            <button class="topbar-btn" id="syncBtn" title="Синхронізація з ботом" onclick="window.location.href='/sync'">
-              <i class="fas fa-sync-alt"></i>
-            </button>
-            <div class="sync-status" id="syncStatus">
-              <span class="status-dot status-success"></span>
-              <span class="status-text">Синхронізовано</span>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <!-- Content Area -->
-      <div class="content-area">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-          {% if messages %}
-            {% for category, message in messages %}
-              <div class="alert alert-{{ category }} alert-modern" role="alert">
-                <i class="fas fa-{% if category == 'success' %}check-circle{% elif category == 'danger' %}exclamation-circle{% else %}info-circle{% endif %}"></i>
-                <span>{{ message }}</span>
-                <button type="button" class="alert-close" onclick="this.parentElement.remove()">
-                  <i class="fas fa-times"></i>
-                </button>
-              </div>
-            {% endfor %}
-          {% endif %}
-        {% endwith %}
-        
-        {% block content %}{% endblock %}
-      </div>
-    </main>
-  </div>
-  {% else %}
-    <div class="login-wrapper">
-      {% block content_login %}{% endblock %}
     </div>
-  {% endif %}
 
-  {% if current_user.is_authenticated %}
-  <script src="{{ url_for('static', filename='js/main.js', v='20260217g') }}"></script>
-  <script>
-    // Check sync status periodically
-    function checkSyncStatus() {
-      fetch('/sync')
-        .then(response => response.text())
-        .then(html => {
-          const parser = new DOMParser();
-          const doc = parser.parseFromString(html, 'text/html');
-          const unprocessedCount = doc.querySelectorAll('.badge.bg-warning').length;
-          
-          const badge = document.getElementById('syncBadge');
-          const statusDot = document.querySelector('.status-dot');
-          const statusText = document.querySelector('.status-text');
-          
-          if (unprocessedCount > 0) {
-            badge.textContent = unprocessedCount;
-            badge.style.display = 'inline-block';
-            statusDot.className = 'status-dot status-warning';
-            statusText.textContent = 'Є події для синхронізації';
-          } else {
-            badge.style.display = 'none';
-            statusDot.className = 'status-dot status-success';
-            statusText.textContent = 'Синхронізовано';
-          }
-        })
-        .catch(err => {
-          console.error('Failed to check sync status:', err);
-        });
-    }
-    
-    // Check every 10 seconds
-    if (document.getElementById('syncBadge')) {
-      checkSyncStatus();
-      setInterval(checkSyncStatus, 10000);
-    }
-  </script>
-  {% endif %}
+    <nav class="sidebar-nav">
+      <div class="nav-section">Головне</div>
+      <a href="/dashboard" class="nav-link {% if request.path.startswith('/dashboard') or request.path == '/' %}active{% endif %}">
+        <i class="ni fas fa-chart-line"></i> Дашборд
+      </a>
+      <a href="/users" class="nav-link {% if request.path.startswith('/users') %}active{% endif %}">
+        <i class="ni fas fa-users"></i> Користувачі
+      </a>
+      <a href="/lots" class="nav-link {% if request.path.startswith('/lots') %}active{% endif %}">
+        <i class="ni fas fa-box"></i> Лоти
+      </a>
 
-  <style>
-    .status-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      display: inline-block;
-      margin-right: 6px;
+      <div class="nav-section" style="margin-top:16px">Маркетинг</div>
+      <a href="/advertisements" class="nav-link {% if request.path.startswith('/advertisements') %}active{% endif %}">
+        <i class="ni fas fa-bullhorn"></i> Реклама
+      </a>
+      <a href="/contacts" class="nav-link {% if request.path.startswith('/contacts') %}active{% endif %}">
+        <i class="ni fas fa-address-book"></i> Контакти
+      </a>
+
+      <div class="nav-section" style="margin-top:16px">Система</div>
+      <a href="/sync" class="nav-link {% if request.path.startswith('/sync') %}active{% endif %}">
+        <i class="ni fas fa-sync-alt"></i> Синхронізація
+        <span class="nav-badge" id="syncBadge" style="display:none">0</span>
+      </a>
+      <a href="/settings" class="nav-link {% if request.path.startswith('/settings') %}active{% endif %}">
+        <i class="ni fas fa-cog"></i> Налаштування
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="user-card">
+        <div class="u-avatar">{{ current_user.id[0].upper() }}</div>
+        <div style="flex:1;min-width:0">
+          <div class="u-name">{{ current_user.id }}</div>
+          <div class="u-role">Адміністратор</div>
+        </div>
+        <a href="/logout" class="logout-btn" title="Вийти"><i class="fas fa-sign-out-alt"></i></a>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <!-- TOPBAR -->
+    <header class="topbar">
+      <div>
+        <div class="topbar-title">{% block page_title %}{% endblock %}</div>
+        <div class="topbar-desc">{% block page_desc %}{% endblock %}</div>
+      </div>
+      <div class="topbar-right">
+        <div class="sync-pill" id="syncPill">
+          <div class="sync-dot" id="syncDot"></div>
+          <span id="syncText">Синхронізовано</span>
+        </div>
+        <button class="topbar-btn" onclick="location.reload()" title="Оновити"><i class="fas fa-sync-alt"></i></button>
+        <a href="/api/db-check" target="_blank" class="topbar-btn" title="DB Info"><i class="fas fa-database"></i></a>
+      </div>
+    </header>
+
+    <!-- CONTENT -->
+    <div class="content fade-in">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="alert-stack">
+          {% for cat, msg in messages %}
+          <div class="alert alert-{{ cat }}">
+            <i class="fas fa-{% if cat == 'success' %}check-circle{% elif cat == 'danger' %}exclamation-circle{% elif cat == 'warning' %}exclamation-triangle{% else %}info-circle{% endif %}"></i>
+            {{ msg }}
+            <button class="alert-close" onclick="this.parentElement.remove()"><i class="fas fa-times"></i></button>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      {% endwith %}
+
+      {% block content %}{% endblock %}
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Auto-refresh sync status ──
+async function checkSync() {
+  try {
+    const r = await fetch('/sync');
+    const h = await r.text();
+    const m = h.match(/sync-count['"]\s*>\s*(\d+)/);
+    const count = m ? parseInt(m[1]) : 0;
+    const dot  = document.getElementById('syncDot');
+    const text = document.getElementById('syncText');
+    const badge = document.getElementById('syncBadge');
+    if (count > 0) {
+      dot.className = 'sync-dot loading';
+      text.textContent = count + ' подій очікують';
+      badge.textContent = count;
+      badge.style.display = 'inline-block';
+    } else {
+      dot.className = 'sync-dot';
+      text.textContent = 'Синхронізовано';
+      badge.style.display = 'none';
     }
-    
-    .status-success {
-      background-color: #28a745;
-      box-shadow: 0 0 8px rgba(40, 167, 69, 0.6);
-    }
-    
-    .status-warning {
-      background-color: #ffc107;
-      box-shadow: 0 0 8px rgba(255, 193, 7, 0.6);
-      animation: pulse 2s infinite;
-    }
-    
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.5; }
-    }
-    
-    .nav-item .badge {
-      font-size: 0.7rem;
-      padding: 0.25em 0.5em;
-    }
-  </style>
+  } catch(e) {
+    const dot = document.getElementById('syncDot');
+    if(dot) { dot.className = 'sync-dot err'; }
+  }
+}
+checkSync();
+setInterval(checkSync, 8000);
+
+// Mobile sidebar toggle
+document.addEventListener('click', e => {
+  if(e.target.closest('#mobileToggle')) {
+    document.getElementById('sidebar').classList.toggle('open');
+  }
+});
+</script>
+
+{% else %}
+{% block login_content %}{% endblock %}
+{% endif %}
+
 </body>
 </html>

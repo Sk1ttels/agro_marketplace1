@@ -1,5 +1,3 @@
-# src/bot/handlers/__init__.py
-
 from . import (
     start,
     registration,
@@ -9,7 +7,8 @@ from . import (
     admin_tools,
     subscriptions,
     offers_handlers,
-    calculators
+    calculators,
+    advertisement_handler,
 )
 
 __all__ = [
@@ -21,5 +20,6 @@ __all__ = [
     'admin_tools',
     'subscriptions',
     'offers_handlers',
-    'calculators'
+    'calculators',
+    'advertisement_handler',
 ]
