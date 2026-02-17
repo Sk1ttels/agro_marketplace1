@@ -90,7 +90,6 @@ async def main():
             offers_handlers, calculators
         )
         
-        dp.include_router(start.router)
         dp.include_router(registration.router)
         dp.include_router(calculators.router)
         dp.include_router(market.router)
@@ -99,7 +98,8 @@ async def main():
         dp.include_router(logistics.router)
         dp.include_router(subscriptions.router)
         dp.include_router(admin_tools.router)
-        
+        dp.include_router(start.router)
+
         logger.info("✅ Всі роутери підключено")
     except Exception as e:
         logger.error(f"❌ Помилка підключення роутерів: {e}")
