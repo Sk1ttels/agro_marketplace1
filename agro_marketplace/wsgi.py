@@ -9,7 +9,14 @@ import subprocess
 from pathlib import Path
 import fcntl
 
+codex/add-user-authentication-feature-b42n18
 from src.web_panel.app import create_app
+codex/add-user-authentication-feature-9ekv34
+from src.web_panel.app import create_app
+
+from src.web_panel.app_sync import create_app
+main
+main
 
 app = create_app()
 
@@ -34,9 +41,18 @@ def _autostart_enabled() -> bool:
     if flag is not None:
         return flag.lower() in {"1", "true", "yes", "on"}
 
+codex/add-user-authentication-feature-b42n18
     # Default: disabled to avoid accidental duplicate polling bots.
     # Enable explicitly with ENABLE_WSGI_BOT_AUTOSTART=1 when needed.
     return False
+codex/add-user-authentication-feature-9ekv34
+    # Default: disabled to avoid accidental duplicate polling bots.
+    # Enable explicitly with ENABLE_WSGI_BOT_AUTOSTART=1 when needed.
+    return False
+  # Default: enabled on Railway only; disabled for local/dev by default.
+    return bool(os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("RAILWAY_PROJECT_ID"))
+ main
+main
 
 
 def _acquire_lock() -> bool:
