@@ -764,6 +764,8 @@ body {
 }
 
 .login-form {
+  position: relative;
+  z-index: 2;
   margin-bottom: 24px;
 }
 
@@ -798,6 +800,7 @@ body {
 
 .password-input-wrapper {
   position: relative;
+  z-index: 2;
 }
 
 .password-toggle {
