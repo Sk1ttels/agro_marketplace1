@@ -1,8 +1,1 @@
-codex/add-user-authentication-feature-b42n18
-web: ENABLE_WSGI_BOT_AUTOSTART=0 . /opt/venv/bin/activate && python run_unified.py
- codex/add-user-authentication-feature-9ekv34
-web: ENABLE_WSGI_BOT_AUTOSTART=0 . /opt/venv/bin/activate && python run_unified.py
-
-web: . /opt/venv/bin/activate && python run_unified.py
- main
-main
+web: ENABLE_WSGI_BOT_AUTOSTART=0 python run_unified.py
