@@ -25,13 +25,18 @@ from config.settings import BOT_TOKEN, ADMIN_IDS, DB_FILE
 from bot.handlers import start, registration, market, chat, logistics, admin_tools, subscriptions, offers_handlers, calculators, advertisement_handler
 
 # Налаштування логування
+_log_handlers = [logging.StreamHandler()]
+try:
+    import os as _os
+    _os.makedirs('logs', exist_ok=True)
+    _log_handlers.append(logging.FileHandler('logs/bot.log'))
+except Exception:
+    pass
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('logs/bot.log'),
-        logging.StreamHandler()
-    ]
+    handlers=_log_handlers
 )
 
 logger = logging.getLogger(__name__)

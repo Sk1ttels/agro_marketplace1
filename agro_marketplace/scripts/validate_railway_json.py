@@ -86,8 +86,6 @@ if "return False" not in wsgi_raw:
 ensure_repo_no_markers()
 
 print("✅ Deploy files and repository are marker-free and mutually consistent")
-"""Validate railway.json and fail fast on merge markers or invalid JSON."""
-from __future__ import annotations
 
 import json
 from pathlib import Path

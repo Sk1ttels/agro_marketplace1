@@ -28,13 +28,18 @@ if not BOT_TOKEN:
 (PROJECT_ROOT / "logs").mkdir(exist_ok=True)
 
 # Налаштування логування
+log_handlers = [logging.StreamHandler()]
+logs_dir = PROJECT_ROOT / "logs"
+try:
+    logs_dir.mkdir(exist_ok=True)
+    log_handlers.append(logging.FileHandler(logs_dir / 'bot.log', encoding='utf-8'))
+except Exception:
+    pass  # На Railway файлова система може не дозволяти запис
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('logs/bot.log', encoding='utf-8'),
-        logging.StreamHandler()
-    ]
+    handlers=log_handlers
 )
 
 logger = logging.getLogger(__name__)

@@ -174,6 +174,7 @@ async def main():
     sync_processor = SyncEventProcessor(bot)
 
     # Підключення роутерів
+    dp.include_router(subscriptions.router)       # ⭐ Підписка — ПЕРШИМ (уникаємо конфлікту з start)
     dp.include_router(start.router)
     dp.include_router(registration.router)
     dp.include_router(calculators.router)
@@ -181,7 +182,6 @@ async def main():
     dp.include_router(offers_handlers.router)
     dp.include_router(chat.router)
     dp.include_router(logistics.router)
-    dp.include_router(subscriptions.router)
     dp.include_router(admin_tools.router)
     dp.include_router(advertisement_handler.router)
 
