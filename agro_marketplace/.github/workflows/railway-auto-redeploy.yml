@@ -1,0 +1,44 @@
+name: Railway auto redeploy
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  redeploy:
+    if: ${{ secrets.RAILWAY_API_TOKEN != '' && secrets.RAILWAY_SERVICE_ID != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Railway redeploy via API
+        env:
+          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
+          RAILWAY_SERVICE_ID: ${{ secrets.RAILWAY_SERVICE_ID }}
+          RAILWAY_ENVIRONMENT_ID: ${{ secrets.RAILWAY_ENVIRONMENT_ID }}
+        run: |
+          set -euo pipefail
+
+          if [ -n "${RAILWAY_ENVIRONMENT_ID:-}" ]; then
+            GRAPHQL_QUERY='mutation serviceInstanceRedeploy($serviceId: String!, $environmentId: String) { serviceInstanceRedeploy(serviceId: $serviceId, environmentId: $environmentId) }'
+            PAYLOAD=$(jq -n --arg q "$GRAPHQL_QUERY" --arg serviceId "$RAILWAY_SERVICE_ID" --arg environmentId "$RAILWAY_ENVIRONMENT_ID" '{query:$q,variables:{serviceId:$serviceId,environmentId:$environmentId}}')
+          else
+            GRAPHQL_QUERY='mutation serviceInstanceRedeploy($serviceId: String!) { serviceInstanceRedeploy(serviceId: $serviceId) }'
+            PAYLOAD=$(jq -n --arg q "$GRAPHQL_QUERY" --arg serviceId "$RAILWAY_SERVICE_ID" '{query:$q,variables:{serviceId:$serviceId}}')
+          fi
+
+          echo "Triggering Railway redeploy for service: $RAILWAY_SERVICE_ID"
+
+          curl -sS --fail \
+            -H "Authorization: Bearer $RAILWAY_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" \
+            https://backboard.railway.app/graphql/v2 \
+            | tee response.json
+
+          if jq -e '.errors' response.json >/dev/null; then
+            echo "Railway API returned errors:" >&2
+            cat response.json >&2
+            exit 1
+          fi
+
+          echo "✅ Railway redeploy triggered"

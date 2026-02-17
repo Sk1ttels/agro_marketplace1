@@ -12,7 +12,7 @@
         <i class="fas fa-users"></i>
       </div>
       <div class="stat-content">
-        <div class="stat-value">{{ stats.users }}</div>
+        <div class="stat-value">{{ (stats | default({})).get("users", 0) }}</div>
         <div class="stat-label">Користувачів</div>
       </div>
       <div class="stat-trend trend-up">
@@ -26,7 +26,7 @@
         <i class="fas fa-box"></i>
       </div>
       <div class="stat-content">
-        <div class="stat-value">{{ stats.lots }}</div>
+        <div class="stat-value">{{ (stats | default({})).get("lots", 0) }}</div>
         <div class="stat-label">Всього лотів</div>
       </div>
       <div class="stat-trend trend-up">
@@ -40,7 +40,7 @@
         <i class="fas fa-check-circle"></i>
       </div>
       <div class="stat-content">
-        <div class="stat-value">{{ stats.active_lots }}</div>
+        <div class="stat-value">{{ (stats | default({})).get("active_lots", 0) }}</div>
         <div class="stat-label">Активних лотів</div>
       </div>
       <div class="stat-trend trend-up">
@@ -54,7 +54,7 @@
         <i class="fas fa-ban"></i>
       </div>
       <div class="stat-content">
-        <div class="stat-value">{{ stats.banned }}</div>
+        <div class="stat-value">{{ (stats | default({})).get("banned", 0) }}</div>
         <div class="stat-label">Заблоковано</div>
       </div>
       <div class="stat-trend trend-down">
@@ -210,7 +210,7 @@
 // Activity Chart з реальними даними
 const ctx = document.getElementById('activityChart');
 if (ctx) {
-  const weeklyData = {{ weekly_data | tojson | safe }};
+  const weeklyData = {{ (weekly_data | default({"labels": ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Нд"], "new_users": [0,0,0,0,0,0,0], "new_lots": [0,0,0,0,0,0,0]})) | tojson | safe }};
   
   new Chart(ctx, {
     type: 'line',
