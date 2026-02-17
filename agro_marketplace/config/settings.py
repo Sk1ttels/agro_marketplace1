@@ -47,3 +47,13 @@ ADMIN_PASS = os.getenv('ADMIN_PASS', 'admin123')
 
 # Логування
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
+# SQLAlchemy-compatible settings object (for engine.py)
+class _Settings:
+    @property
+    def DATABASE_URL(self):
+        return f"sqlite+aiosqlite:///{DB_PATH}"
+
+settings = _Settings()
+
+# DATABASE_URL alias
+DATABASE_URL = f"sqlite+aiosqlite:///{DB_PATH}"

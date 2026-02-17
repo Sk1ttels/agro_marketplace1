@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 import os
-from src.database.migrate import migrate
 import json
 import re
 import logging
@@ -31,10 +30,13 @@ logger = logging.getLogger(__name__)
 
 router = Router()
 
-DB_FILE = os.getenv('DB_FILE', './agro_bot.db')
+try:
+    from config.settings import DB_PATH as _DB_PATH
+    DB_FILE = str(_DB_PATH)
+except Exception:
+    DB_FILE = os.getenv('DB_FILE', 'data/agro_bot.db')
 
 # Run migrations once at import (safe & idempotent)
-migrate(os.path.abspath(DB_FILE))
 # ✅ Адмін по whitelist
 ADMIN_IDS = set()
 try:

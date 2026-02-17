@@ -2,14 +2,17 @@
 from __future__ import annotations
 
 from aiogram import Router, F
-from aiogram.filters import CommandStart
 from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
 import aiosqlite
 
-DB_FILE = "agro_bot.db"
+try:
+    from config.settings import DB_PATH as _DB_PATH
+    DB_FILE = str(_DB_PATH)
+except Exception:
+    DB_FILE = "data/agro_bot.db" 
 router = Router()
 
 # ---------- FSM ----------
@@ -144,11 +147,6 @@ async def continue_flow(message: Message, state: FSMContext):
     await message.answer(profile_text(row), reply_markup=main_menu_kb(True), parse_mode="HTML")
 
 # ---------- Handlers ----------
-@router.message(CommandStart())
-async def cmd_start(message: Message, state: FSMContext):
-    await ensure_user(message.from_user.id)
-    await continue_flow(message, state)
-
 @router.message(F.text == "👤 Профіль")
 async def profile(message: Message, state: FSMContext):
     await ensure_user(message.from_user.id)

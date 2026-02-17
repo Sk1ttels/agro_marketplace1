@@ -25,7 +25,11 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 logger = logging.getLogger(__name__)
 router = Router()
 
-DB_FILE = os.getenv("DB_FILE", "agro_bot.db")
+try:
+    from config.settings import DB_PATH as _DB_PATH
+    DB_FILE = str(_DB_PATH)
+except Exception:
+    DB_FILE = os.getenv("DB_FILE", "data/agro_bot.db")
 
 
 # ---------- DB helpers ----------

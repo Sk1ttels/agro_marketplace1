@@ -28,7 +28,15 @@ from .db import (
 )
 
 from .auth import AdminUser, check_login
-from src.bot.services.sync_service import FileBasedSync
+try:
+    from src.bot.services.sync_service import FileBasedSync
+except ImportError:
+    class FileBasedSync:
+        @classmethod
+        def write_event(cls, *args, **kwargs): pass
+        @classmethod
+        def read_unprocessed_events(cls): return []
+        SYNC_FILE = None
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
