@@ -17,7 +17,7 @@ import aiosqlite
 from aiogram import Router, F
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
-from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, ReplyKeyboardMarkup
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 
 
@@ -64,13 +64,12 @@ class CreateShipment(StatesGroup):
 
 def kb_logistics_menu():
     kb = ReplyKeyboardBuilder()
-    kb.button(text="🚚 Логістика")
     kb.button(text="➕ Додати авто")
     kb.button(text="📦 Створити заявку")
     kb.button(text="🚛 Транспорт")
     kb.button(text="📨 Заявки")
     kb.button(text="⬅️ Назад")
-    kb.adjust(2, 2, 2)
+    kb.adjust(2, 2, 1)
     return kb.as_markup(resize_keyboard=True)
 
 
@@ -315,6 +314,7 @@ def _clean_optional_text(txt: str) -> Optional[str]:
     t = (txt or "").strip()
     if t == "-" or t == "—":
         return None
+    return t if t else None
 
 
 async def _get_telegram_id_by_user_id(user_id: int) -> Optional[int]:
@@ -328,7 +328,6 @@ async def _get_telegram_id_by_user_id(user_id: int) -> Optional[int]:
             return int(row["telegram_id"])
         except Exception:
             return None
-    return t if t else None
 
 
 @router.message(F.text == "🚚 Логістика")
@@ -412,12 +411,21 @@ async def vehicle_base_city(message: Message, state: FSMContext):
 
     await state.update_data(base_city=city)
     await state.set_state(CreateVehicle.comment)
-    await message.answer("Коментар (або '-' щоб пропустити):")
+    kb = ReplyKeyboardBuilder()
+    kb.button(text="⏭ Пропустити")
+    kb.button(text="⬅️ Назад")
+    kb.adjust(1)
+    await message.answer("Коментар (або натисніть «⏭ Пропустити»):", reply_markup=kb.as_markup(resize_keyboard=True))
 
 
 @router.message(CreateVehicle.comment)
 async def vehicle_finish(message: Message, state: FSMContext):
-    comment = _clean_optional_text(message.text or "")
+    text = (message.text or "").strip()
+    if text == "⬅️ Назад":
+        await state.set_state(CreateVehicle.base_city)
+        await message.answer("Введіть населений пункт (місто/село):", reply_markup=ReplyKeyboardRemove())
+        return
+    comment = None if text in ("⏭ Пропустити", "-", "—") else _clean_optional_text(text)
     data = await state.get_data()
 
     user_id = await _get_user_id(message.from_user.id)
@@ -459,12 +467,21 @@ async def shipment_start(message: Message, state: FSMContext):
     await _ensure_tables()
     await state.clear()
     await state.set_state(CreateShipment.cargo_type)
-    await message.answer("Введіть тип вантажу (наприклад: пшениця):", reply_markup=kb_logistics_menu())
+    kb = ReplyKeyboardBuilder()
+    kb.button(text="⬅️ Назад")
+    kb.adjust(1)
+    await message.answer("Введіть тип вантажу (наприклад: пшениця):", reply_markup=kb.as_markup(resize_keyboard=True))
 
 
 @router.message(CreateShipment.cargo_type)
 async def shipment_cargo(message: Message, state: FSMContext):
     cargo = (message.text or "").strip()
+
+    if cargo == "⬅️ Назад":
+        await state.clear()
+        await message.answer("🚚 <b>Логістика</b>", reply_markup=kb_logistics_menu())
+        return
+
     if len(cargo) < 2 or len(cargo) > 50:
         await message.answer("2–50 символів")
         return
@@ -548,13 +565,22 @@ async def shipment_to_city(message: Message, state: FSMContext):
 
     await state.update_data(to_location=city)
     await state.set_state(CreateShipment.comment)
-    await message.answer("Коментар (або '-' щоб пропустити):")
+    kb = ReplyKeyboardBuilder()
+    kb.button(text="⏭ Пропустити")
+    kb.button(text="⬅️ Назад")
+    kb.adjust(1)
+    await message.answer("Коментар (або натисніть «⏭ Пропустити»):", reply_markup=kb.as_markup(resize_keyboard=True))
 
 
 
 @router.message(CreateShipment.comment)
 async def shipment_finish(message: Message, state: FSMContext):
-    comment = _clean_optional_text(message.text or "")
+    text = (message.text or "").strip()
+    if text == "⬅️ Назад":
+        await state.set_state(CreateShipment.to_city)
+        await message.answer("Введіть населений пункт (куди):", reply_markup=ReplyKeyboardRemove())
+        return
+    comment = None if text in ("⏭ Пропустити", "-", "—") else _clean_optional_text(text)
     data = await state.get_data()
 
     user_id = await _get_user_id(message.from_user.id)
@@ -630,3 +656,25 @@ async def list_shipments(message: Message):
     for r in rows[:10]:
         mk = kb_shipment_chat(int(r["id"])) if (me_uid and int(r["creator_user_id"]) != int(me_uid)) else None
         await message.answer(_shipment_text(r), reply_markup=mk)
+
+
+# ══════════════════════ BACK TO MAIN ══════════════════════
+
+async def _get_main_menu_kb(telegram_id: int):
+    """Returns the main menu keyboard."""
+    try:
+        from src.bot.keyboards.main import main_menu
+        import os
+        raw = os.getenv("ADMIN_IDS", "")
+        is_adm = str(telegram_id) in raw
+        return main_menu(is_admin=is_adm)
+    except Exception:
+        from aiogram.utils.keyboard import ReplyKeyboardBuilder
+        kb = ReplyKeyboardBuilder()
+        kb.button(text="🌾 Маркет"); kb.button(text="🔁 Зустрічні")
+        kb.button(text="🔨 Торг"); kb.button(text="💬 Мої чати")
+        kb.button(text="📇 Мої контакти"); kb.button(text="📈 Ціни")
+        kb.button(text="🚚 Логістика"); kb.button(text="👤 Профіль")
+        kb.button(text="⭐ Підписка"); kb.button(text="🆘 Підтримка")
+        kb.adjust(2, 2, 2, 2, 2)
+        return kb.as_markup(resize_keyboard=True)
