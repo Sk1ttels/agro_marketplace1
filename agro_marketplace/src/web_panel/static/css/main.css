@@ -652,6 +652,10 @@ body {
   pointer-events: none;
 }
 
+.login-background * {
+  pointer-events: none;
+}
+
 .bg-shape {
   position: absolute;
   border-radius: 50%;
@@ -838,6 +842,13 @@ body {
   justify-content: center;
   gap: 8px;
   margin: 0;
+}
+
+
+@media (max-width: 768px) {
+  .login-background {
+    display: none;
+  }
 }
 
 /* ==================== 

@@ -41,6 +41,9 @@ def signal_handler(signum, frame):
 
 def run_web_server():
     try:
+        # Prevent duplicated bot startup when WSGI app is imported under unified mode.
+        os.environ["ENABLE_WSGI_BOT_AUTOSTART"] = "0"
+
         import gunicorn.app.base
 
         class StandaloneApplication(gunicorn.app.base.BaseApplication):
