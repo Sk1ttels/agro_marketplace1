@@ -236,6 +236,12 @@ async def callback_subscription_menu(call: CallbackQuery):
     )
     await call.answer()
 
+@router.callback_query(F.data == "main_menu")
+async def back_to_main_menu(call: CallbackQuery):
+    """Повернення з меню підписок у головне меню."""
+    await call.message.answer("🏠 Головне меню", reply_markup=main_menu())
+    await call.answer()
+
 @router.callback_query(F.data == "sub:current")
 async def show_current_subscription(call: CallbackQuery):
     """Показати поточну підписку"""

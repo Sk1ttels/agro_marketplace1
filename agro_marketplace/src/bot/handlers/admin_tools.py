@@ -64,6 +64,33 @@ async def admin_stats(cb: CallbackQuery):
     await cb.message.answer(f"📊 Статистика:\n👥 Користувачів: <b>{users}</b>\n📦 Лотів: <b>{lots}</b>\n✅ Активних: <b>{active}</b>")
     await cb.answer()
 
+@router.callback_query(F.data.startswith("admin:lot:close:"))
+async def admin_lot_close(cb: CallbackQuery):
+    if not is_admin(cb.from_user.id):
+        await cb.answer("Немає доступу", show_alert=True)
+        return
+
+    try:
+        lot_id = int(cb.data.rsplit(":", 1)[1])
+    except Exception:
+        await cb.answer("Некоректний ID лоту", show_alert=True)
+        return
+
+    async with aiosqlite.connect(DB_FILE) as db:
+        cur = await db.execute("SELECT status FROM lots WHERE id = ?", (lot_id,))
+        row = await cur.fetchone()
+        if not row:
+            await cb.answer("Лот не знайдено", show_alert=True)
+            return
+
+        await db.execute("UPDATE lots SET status='closed' WHERE id = ?", (lot_id,))
+        await db.commit()
+
+    await cb.answer("✅ Лот закрито")
+    if cb.message:
+        await cb.message.edit_reply_markup(reply_markup=None)
+
+
 @router.callback_query(F.data == "admin:lots")
 async def admin_lots(cb: CallbackQuery):
     if not is_admin(cb.from_user.id):
