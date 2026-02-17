@@ -11,6 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css', v='20260217g') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css', v='20260217f') }}">
 </head>
 <body>
 
@@ -114,6 +115,8 @@
             <h1 class="page-title">{% block page_title %}{% endblock %}</h1>
             <p class="page-description">{% block page_description %}{% endblock %}</p>
           </div>
+          <h1 class="page-title">{% block page_title %}{% endblock %}</h1>
+          <p class="page-description">{% block page_description %}{% endblock %}</p>
         </div>
         <div class="topbar-right">
           <div class="topbar-actions">
@@ -160,6 +163,7 @@
 
   {% if current_user.is_authenticated %}
   <script src="{{ url_for('static', filename='js/main.js', v='20260217g') }}"></script>
+  <script src="{{ url_for('static', filename='js/main.js', v='20260217f') }}"></script>
   <script>
     // Check sync status periodically
     function checkSyncStatus() {
