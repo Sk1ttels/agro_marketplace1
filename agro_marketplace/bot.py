@@ -78,6 +78,15 @@ async def main():
     # Ініціалізація диспетчера
     dp = Dispatcher()
 
+    # Throttle middleware — першим, захист від спаму
+    try:
+        from src.bot.middlewares.throttle import ThrottleMiddleware
+        dp.message.middleware(ThrottleMiddleware())
+        dp.callback_query.middleware(ThrottleMiddleware())
+        logger.info("✅ ThrottleMiddleware підключено")
+    except Exception as e:
+        logger.warning(f"⚠️  Не вдалося підключити ThrottleMiddleware: {e}")
+
     # Підключення middleware для перевірки бану
     try:
         from src.bot.middlewares.ban_check import BanCheckMiddleware

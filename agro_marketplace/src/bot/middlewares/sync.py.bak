@@ -53,16 +53,11 @@ class SyncEventProcessor:
             await asyncio.sleep(2)
 
     async def _process_events(self):
-        # ✅ Читаємо ПОВНИЙ список подій (з реальними індексами для mark_event_processed)
-        events = FileBasedSync.read_all_events()
+        events = FileBasedSync.read_unprocessed_events()
         if not events:
             return
 
         for idx, event in enumerate(events):
-            # Пропускаємо вже оброблені події
-            if event.get("processed", False):
-                continue
-
             event_type = event.get("event_type")
             data = event.get("data", {})
             try:
@@ -74,7 +69,6 @@ class SyncEventProcessor:
                     await self._on_lot_status_changed(data)
                 elif event_type == "settings_changed":
                     logger.info("Налаштування змінено через веб-панель")
-                # ✅ idx тепер відповідає реальному індексу у файлі
                 FileBasedSync.mark_event_processed(idx)
             except Exception as e:
                 logger.error("Помилка обробки події %s: %s", event_type, e)

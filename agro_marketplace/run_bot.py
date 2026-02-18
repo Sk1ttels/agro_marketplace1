@@ -39,6 +39,7 @@ from src.bot.handlers import (
 from src.bot.middlewares.sync import SyncEventProcessor
 from src.bot.middlewares.ban_check import BanCheckMiddleware
 from src.bot.middlewares.advertisement import AdvertisementMiddleware
+from src.bot.middlewares.throttle import ThrottleMiddleware
 
 # Налаштування логування
 logging.basicConfig(
@@ -165,7 +166,9 @@ async def main():
     # Ініціалізація диспетчера
     dp = Dispatcher()
 
-    # Реєстрація middleware
+    # Реєстрація middleware (порядок важливий — throttle першим)
+    dp.message.middleware(ThrottleMiddleware())
+    dp.callback_query.middleware(ThrottleMiddleware())
     dp.message.middleware(BanCheckMiddleware())
     dp.callback_query.middleware(BanCheckMiddleware())
     dp.message.middleware(AdvertisementMiddleware(DB_FILE))

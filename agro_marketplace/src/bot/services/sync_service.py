@@ -179,6 +179,18 @@ class FileBasedSync:
             logger.error(f"Error writing sync event: {e}")
     
     @classmethod
+    def read_all_events(cls):
+        """Read ALL events from file (processed and unprocessed), preserving real indices"""
+        try:
+            if not cls.SYNC_FILE.exists():
+                return []
+            with open(cls.SYNC_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception as e:
+            logger.error(f"Error reading all sync events: {e}")
+            return []
+
+    @classmethod
     def read_unprocessed_events(cls):
         """Read unprocessed events from file"""
         try:

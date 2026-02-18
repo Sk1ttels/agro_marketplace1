@@ -364,8 +364,9 @@ async def cmd_start(message: Message, state: FSMContext):
         await message.answer("⛔ Ваш акаунт заблоковано")
         return
 
+    u = await get_user_row(message.from_user.id)
+
     if await is_registered(message.from_user.id):
-        u = await get_user_row(message.from_user.id)
         markup = kb_admin_menu() if u["role"] == "admin" else kb_main_menu()
         await message.answer(
             f"👋 Вітаємо знову, <b>{message.from_user.first_name}</b>!\n\n"
@@ -373,14 +374,37 @@ async def cmd_start(message: Message, state: FSMContext):
             reply_markup=markup
         )
     else:
-        logger.info(f"Нова реєстрація: {message.from_user.id}")
-        await state.set_state(Registration.role)
-        await message.answer(
-            "👋 <b>Вітаємо в Агромаркеті!</b>\n\n"
-            "Для початку роботи потрібно пройти швидку реєстрацію.\n\n"
-            "Оберіть вашу роль:",
-            reply_markup=kb_roles()
-        )
+        # Визначаємо на якому кроці юзер зупинився (якщо бот перезапустився)
+        if u and u["role"] not in ("guest", None):
+            # Роль є — значить зупинились на телефоні або компанії
+            if not u["phone"]:
+                await state.set_state(Registration.phone)
+                await message.answer(
+                    "📞 Продовжуємо реєстрацію!\n\nВведіть ваш телефон (або пропустіть):",
+                    reply_markup=kb_skip_phone()
+                )
+            elif not u["company"]:
+                await state.set_state(Registration.company_name)
+                await message.answer(
+                    "🏢 Продовжуємо реєстрацію!\n\nВведіть назву компанії (або пропустіть):",
+                    reply_markup=kb_skip_company()
+                )
+            else:
+                # Все є — але роль guest? Не має бути, але якщо так — починаємо знову
+                await state.set_state(Registration.role)
+                await message.answer(
+                    "👋 <b>Вітаємо в Агромаркеті!</b>\n\nОберіть вашу роль:",
+                    reply_markup=kb_roles()
+                )
+        else:
+            logger.info(f"Нова реєстрація: {message.from_user.id}")
+            await state.set_state(Registration.role)
+            await message.answer(
+                "👋 <b>Вітаємо в Агромаркеті!</b>\n\n"
+                "Для початку роботи потрібно пройти швидку реєстрацію.\n\n"
+                "Оберіть вашу роль:",
+                reply_markup=kb_roles()
+            )
 
 
 @router.message(Registration.role)
@@ -483,6 +507,10 @@ async def reg_company(message: Message, state: FSMContext):
     await state.clear()
 
     u = await get_user_row(message.from_user.id)
+    if not u:
+        await message.answer("❌ Помилка завантаження профілю. Натисніть /start")
+        return
+
     markup = kb_admin_menu() if u["role"] == "admin" else kb_main_menu()
 
     await message.answer(
@@ -633,9 +661,8 @@ async def my_status(message: Message):
 @router.message(F.text == "⬅️ Назад")
 async def back_to_menu(message: Message, state: FSMContext):
     current = await state.get_state()
-    # Якщо в FSM стані — хендлери самих модулів мають обробляти Назад у своїх станах
-    # Тут ловимо лише коли поза FSM (або невідомий стан)
-    if current and not current.startswith("Registration") and not current.startswith("EditProfile"):
+    # Якщо в Registration або EditProfile — не втручаємось, модуль сам обробляє
+    if current:
         return
     await state.clear()
     await _send_main_menu(message, message.from_user.id, "⬅️ Головне меню")
@@ -792,7 +819,9 @@ async def universal_catch_all(message: Message, state: FSMContext):
     # Перевіряємо реєстрацію
     if not await is_registered(message.from_user.id):
         await message.answer(
-            "👋 Спочатку пройдіть реєстрацію.\nНатисніть /start"
+            "👋 Схоже реєстрацію не завершено або сесія перервалась.\n"
+            "Натисніть /start щоб продовжити.",
+            reply_markup=ReplyKeyboardRemove()
         )
         return
 

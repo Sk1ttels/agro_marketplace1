@@ -71,6 +71,11 @@ async def main():
     # Ініціалізація диспетчера
     dp = Dispatcher()
 
+    # Throttle middleware — першим
+    from src.bot.middlewares.throttle import ThrottleMiddleware
+    dp.message.middleware(ThrottleMiddleware())
+    dp.callback_query.middleware(ThrottleMiddleware())
+
     # Підключення роутерів
     dp.include_router(subscriptions.router)
     dp.include_router(registration.router)
