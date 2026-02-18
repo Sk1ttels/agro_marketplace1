@@ -632,6 +632,11 @@ async def my_status(message: Message):
 
 @router.message(F.text == "⬅️ Назад")
 async def back_to_menu(message: Message, state: FSMContext):
+    current = await state.get_state()
+    # Якщо в FSM стані — хендлери самих модулів мають обробляти Назад у своїх станах
+    # Тут ловимо лише коли поза FSM (або невідомий стан)
+    if current and not current.startswith("Registration") and not current.startswith("EditProfile"):
+        return
     await state.clear()
     await _send_main_menu(message, message.from_user.id, "⬅️ Головне меню")
 
@@ -690,17 +695,20 @@ async def counteroffers(message: Message):
     await message.answer(f"🔁 <b>Знайдено {len(lots)} зустрічних пропозицій:</b>")
     for lot in lots:
         lot_type = "📤 Продам" if lot["type"] == "sell" else "📥 Куплю"
+        vol = lot["volume_tons"] if lot["volume_tons"] else (lot["volume"] if lot["volume"] else "—")
+        price = lot["price"] if lot["price"] else "Договірна"
         text = (
             f"{lot_type} <b>{lot['crop']}</b>\n"
-            f"📦 Обсяг: {lot['volume']} т\n"
-            f"💰 Ціна: {lot['price']} грн/т\n"
+            f"📦 Обсяг: {vol} т\n"
+            f"💰 Ціна: {price} грн/т\n"
             f"📍 {lot['region']}\n"
             f"🏢 {lot['company'] or 'Приватна особа'}"
         )
         kb = InlineKeyboardBuilder()
         kb.button(text="💬 Написати", callback_data=f"chat:start:lot:{lot['id']}")
+        kb.button(text="💰 Запропонувати ціну", callback_data=f"offer:make:{lot['id']}")
         kb.button(text="⭐ В обране", callback_data=f"fav:toggle:lot:{lot['id']}")
-        kb.adjust(2)
+        kb.adjust(2, 1)
         await message.answer(text, reply_markup=kb.as_markup())
 
 
