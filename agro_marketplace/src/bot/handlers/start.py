@@ -210,15 +210,17 @@ def kb_subscription():
 
 # ===================== DB helpers =====================
 
-async def ensure_user(telegram_id: int):
+async def ensure_user(telegram_id: int, username: str = None, full_name: str = None):
     async with aiosqlite.connect(DB_FILE) as db:
         await db.execute(
             """
-            INSERT INTO users (telegram_id, role, region, is_banned, created_at)
-            VALUES (?, 'guest', 'unknown', 0, CURRENT_TIMESTAMP)
-                ON CONFLICT(telegram_id) DO NOTHING
+            INSERT INTO users (telegram_id, username, full_name, role, region, is_banned, created_at)
+            VALUES (?, ?, ?, 'guest', 'unknown', 0, CURRENT_TIMESTAMP)
+                ON CONFLICT(telegram_id) DO UPDATE SET
+                    username = COALESCE(excluded.username, username),
+                    full_name = COALESCE(excluded.full_name, full_name)
             """,
-            (telegram_id,),
+            (telegram_id, username, full_name),
         )
         if telegram_id in ADMIN_IDS:
             await db.execute("UPDATE users SET role='admin' WHERE telegram_id=?", (telegram_id,))
@@ -358,7 +360,11 @@ async def _send_main_menu(message: Message, telegram_id: int, text: str = "🏠 
 @router.message(CommandStart())
 async def cmd_start(message: Message, state: FSMContext):
     await state.clear()
-    await ensure_user(message.from_user.id)
+    await ensure_user(
+        message.from_user.id,
+        username=message.from_user.username,
+        full_name=message.from_user.full_name,
+    )
 
     if await is_banned(message.from_user.id):
         await message.answer("⛔ Ваш акаунт заблоковано")

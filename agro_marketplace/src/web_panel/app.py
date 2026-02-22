@@ -262,21 +262,45 @@ def create_app() -> Flask:
     @login_required
     def user_set_subscription(user_id: int):
         plan = request.form.get("plan", "free")
+        duration_days = int(request.form.get("duration_days", 30))
         if plan not in ("free", "basic", "premium", "business"):
             flash("Невірний план", "danger")
             return redirect(url_for("user_detail", user_id=user_id))
         conn = get_conn()
         try:
+            from datetime import datetime, timedelta
             cols = _table_cols(conn, "users")
+
+            # 1. Оновлюємо колонку в таблиці users
+            expires_at = None
+            if plan != "free":
+                expires_at = (datetime.now() + timedelta(days=duration_days)).strftime("%Y-%m-%d %H:%M:%S")
             if "subscription_plan" in cols:
                 conn.execute(
-                    "UPDATE users SET subscription_plan=? WHERE id=?",
-                    (plan, user_id)
+                    "UPDATE users SET subscription_plan=?, subscription_until=? WHERE id=?",
+                    (plan, expires_at, user_id)
                 )
-                conn.commit()
-                flash(f"✅ Підписку змінено на '{plan}'", "success")
-            else:
-                flash("Колонка subscription_plan відсутня в БД", "warning")
+
+            # 2. Оновлюємо user_subscriptions (яку читає бот)
+            try:
+                conn.execute("SELECT 1 FROM user_subscriptions LIMIT 1")
+                has_sub_table = True
+            except Exception:
+                has_sub_table = False
+
+            if has_sub_table:
+                conn.execute(
+                    "UPDATE user_subscriptions SET is_active=0 WHERE user_id=?",
+                    (user_id,)
+                )
+                conn.execute(
+                    """INSERT INTO user_subscriptions (user_id, plan, started_at, expires_at, is_active)
+                       VALUES (?, ?, CURRENT_TIMESTAMP, ?, 1)""",
+                    (user_id, plan, expires_at)
+                )
+
+            conn.commit()
+            flash(f"✅ Підписку змінено на '{plan}'", "success")
         except Exception as e:
             flash(f"Помилка: {e}", "danger")
         finally:
